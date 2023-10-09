@@ -17,12 +17,62 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from scipy.spatial.distance import directed_hausdorff 
-from scipy.signal import savgol_filter
-from scipy.interpolate import interp1d
+from scipy import optimize
 
-import cv2 as cv
+from IPython import get_ipython
 
-#  1. Compute normal to a vector
+# Intersection volume between sphere and cylinder
+
+def interVolSC(Rs,Rc,Dsc):
+    
+                
+    """ ref : Boersma and Kamminga, 1961. (https://core.ac.uk/download/pdf/82412251.pdf) """
+    """ Equation (5) and (8) are implemented with the use of mpmath for computation of the elliptic integrals. """
+    
+    # Rs sphere radius, Rc cylinder radius, Dsc distance between the two centers
+    
+    # normalization to sphere radius
+    rho = Rc/Rs
+    eta = Dsc/Rs
+    
+    """ Formula is valid if sphere and cylinder intersects """
+    if not (eta-rho) < 1:
+        raise ValueError('Invalid case ! This code''s formula is only valid for intersecting sphere and cylinders \n -> (Dsc/Rs) - (Rc/Rs) < 1 !!')
+        
+
+    """ Heuman's lambda function """
+    def Lambda0(beta,m):      
+        """ From (https://link.springer.com/content/pdf/10.1007%2F978-3-642-65138-0.pdf) form 150.3 page 36 """
+        L = 2/np.pi*(mpm.ellipe(m)*mpm.ellipf(beta,(1-m))+mpm.ellipk(m)*mpm.ellipe(beta,(1-m))-mpm.ellipk(m)*mpm.ellipf(beta,(1-m)))
+        return(L)   
+    
+    
+    if (eta+rho)>1 :
+        """ Formula (5) is valid for eta+rho > 1 , this means that the part of the cylinder is outside the drop  """ 
+        
+        m = (1-(eta-rho)**2)/(4*rho*eta) # parameter for eliptic functions of mpmath (=k² in the paper)    
+        theta = np.arcsin(eta-rho)  
+        
+        V = (2/3*np.pi*(1-Lambda0(theta,m)) 
+             -8/9*np.sqrt(rho*eta)*(6*rho**2+2*rho*eta-3)*(1-m)*mpm.ellipk(m) 
+             +8/9*np.sqrt(rho*eta)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
+    
+    else:
+        """ Formula (8) is valid for eta+rho <= 1 , this means that the cylinder is completely inside the drop  """ 
+        
+        m = (4*rho*eta)/(1-(eta-rho)**2) # parameter for eliptic functions of mpmath (=k² in the paper)    
+        theta = np.arcsin((eta-rho)/(eta+rho))  
+        
+        V = (2/3*np.pi*(1-Lambda0(theta,m))
+             -(4*np.sqrt(1-(eta-rho)**2))/(9*(eta+rho))*(2*rho-4*eta+(eta+rho)*(eta-rho)**2)*(1-m)*mpm.ellipk(m)
+             +4/9*np.sqrt(1-(eta-rho)**2)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
+
+    
+    return(float(V*Rs**3))
+
+
+
+#  Compute normal to a vector
 
 # Normal vector is normalized, and by default rotated counter clockwise from given vector
 # the input vector is from (x1,y1) to (x2,y2)
@@ -61,7 +111,7 @@ def getNormal(x1,y1,x2,y2, **kwargs):
             
     return(x,y) 
     
-#  2. Plotting boxplots with data points on top 
+#  Plotting boxplots with data points on top 
 
 # A function combining boxplot with seaborn's swarmplot for a better display of data
 
@@ -109,7 +159,7 @@ def boxswarmplot(Title,Ylabel,Data,facecolors,Labels,**kwargs):
     return(fig,ax,cap,med)
     
 
-# 3. Coordinate conversion from cartesian to circular (in deg) an vice versa
+# Coordinate conversion from cartesian to circular (in deg) an vice versa
 
 def ToCirc(X,Y, **kwargs):
     
@@ -160,14 +210,14 @@ def ToCart(Alpha,Radius, **kwargs):
     
     return(X,Y)
 
-# 4.1 Euclidian distance between two arrays of points in carthesian coordinates 
+# Euclidian distance between two arrays of points in carthesian coordinates 
 def dist(x1,y1,x2,y2):
     
     d = np.sqrt(np.square(x1-x2)+np.square(y1-y2))
     
     return(d)
 
-# 4.2 Computation of Hausdorff distance (https://en.wikipedia.org/wiki/Hausdorff_distance) between two contours
+# Computation of Hausdorff distance (https://en.wikipedia.org/wiki/Hausdorff_distance) between two contours
     
     
 def HausdorffDist(x1,y1,x2,y2, **kwargs):
@@ -201,60 +251,13 @@ def HausdorffDist(x1,y1,x2,y2, **kwargs):
    
     return(D)
 
-# 5. Intersection volume between sphere and cylinder
 
-def interVolSC(Rs,Rc,Dsc):
-    
-                
-    """ ref : Boersma and Kamminga, 1961. (https://core.ac.uk/download/pdf/82412251.pdf) """
-    """ Equation (5) and (8) are implemented with the use of mpmath for computation of the elliptic integrals. """
-    
-    # Rs sphere radius, Rc cylinder radius, Dsc distance between the two centers
-    
-    # normalization to sphere radius
-    rho = Rc/Rs
-    eta = Dsc/Rs
-    
-    """ Formula is valid if sphere and cylinder intersects """
-    if not (eta-rho) < 1:
-        raise ValueError('Invalid case ! This code''s formula is only valid for intersecting sphere and cylinders \n -> (Dsc/Rs) - (Rc/Rs) < 1 !!')
-        
-
-    """ Heuman's lambda function """
-    def Lambda0(beta,m):      
-        """ From (https://link.springer.com/content/pdf/10.1007%2F978-3-642-65138-0.pdf) form 150.3 page 36 """
-        L = 2/np.pi*(mpm.ellipe(m)*mpm.ellipf(beta,(1-m))+mpm.ellipk(m)*mpm.ellipe(beta,(1-m))-mpm.ellipk(m)*mpm.ellipf(beta,(1-m)))
-        return(L)   
-    
-    
-    if (eta+rho)>1 :
-        """ Formula (5) is valid for eta+rho > 1 , this means that the part of the cylinder is outside the drop  """ 
-        
-        m = (1-(eta-rho)**2)/(4*rho*eta) # parameter for eliptic functions of mpmath (=k² in the paper)    
-        theta = np.arcsin(eta-rho)  
-        
-        V = (2/3*np.pi*(1-Lambda0(theta,m)) 
-             -8/9*np.sqrt(rho*eta)*(6*rho**2+2*rho*eta-3)*(1-m)*mpm.ellipk(m) 
-             +8/9*np.sqrt(rho*eta)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
-    
-    else:
-        """ Formula (8) is valid for eta+rho <= 1 , this means that the cylinder is completely inside the drop  """ 
-        
-        m = (4*rho*eta)/(1-(eta-rho)**2) # parameter for eliptic functions of mpmath (=k² in the paper)    
-        theta = np.arcsin((eta-rho)/(eta+rho))  
-        
-        V = (2/3*np.pi*(1-Lambda0(theta,m))
-             -(4*np.sqrt(1-(eta-rho)**2))/(9*(eta+rho))*(2*rho-4*eta+(eta+rho)*(eta-rho)**2)*(1-m)*mpm.ellipk(m)
-             +4/9*np.sqrt(1-(eta-rho)**2)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
-
-    
-    return(float(V*Rs**3))
-
-# 6. simple ismember function, checks if A is within B
+# Simple ismember function, checks if A is within B
 def ismember(A, B):
     return [ np.sum(b == A) for b in B ]
 
-# 7. R2 computation for a fit
+
+# R2 computation for a fit
 def computeR2(Ydata,Yfit):
     # Ydata are the fitted data, Yfit the comuted value from the fit
     
@@ -265,70 +268,7 @@ def computeR2(Ydata,Yfit):
     
     return R2
     
-    
- # 8. Normalisation of a contour by its area
 
-def normaliseContourByArea(X,Y):
-    
-    Cnt = np.array([[x,y] for x,y in zip(X,Y)], dtype=np.float32)
-        
-    area = cv.contourArea(Cnt)
-    
-  #  print('Contour original area : ' + str(area))
-
-    XNorm = np.divide(X,np.sqrt(area))
-    YNorm = np.divide(Y,np.sqrt(area))
-
-    # CntNorm = np.array([[x,y] for x,y in zip(XNorm,YNorm)], dtype=np.float32)
-
-    # areaNorm = cv.contourArea(CntNorm)
-    
- #   print('Contour normalized area : ' + str(areaNorm))
-        
-    return(XNorm,YNorm)
-
-
-# 9. Compute growth rate (1/A * dA/dt) for a curve A and time T 
-
-def GrowthRate(A,Time):
-    
-    dA = np.diff(A)        
-    dt = np.diff(Time)
-    
-    dAdt = np.divide(dA,dt)
-    windowlength =  np.min([11,int(np.floor(len(dAdt)/2)*2-1)])
-    dAdt_S = savgol_filter(dAdt, windowlength , np.min([3,windowlength-1]))    
-    
-    intTime = Time[0:-1]+dt/2
-    
-    inv_A = np.divide(1,A)
-    inv_f = interp1d(Time,inv_A)
-    inv_A_timed = inv_f(intTime)
-    
-    
-    windowlength =  np.min([11,int(np.floor(len(inv_A_timed)/2)*2-1)])
-    inv_A_S = savgol_filter(inv_A_timed,windowlength, np.min([3,windowlength-1]))
-    
-    
-    GR = np.multiply(inv_A_timed,dAdt)
-    GR_S = np.multiply(inv_A_S,dAdt_S)
-    
-    return(GR,GR_S,intTime)
-        
-
-# 10. Creation of a list to define a mosaic subplot figure
-
-def mosaicList(n):
-    alphabet = 'abcdefghijklmn'
-    list1 = [*alphabet[0]*n]
-    list2 = [*alphabet[1:n+1]]
-    mosaic = [list1[:]]
-    for i in range(2):
-        mosaic.append(list1)
-    mosaic.append(list2)
-    return(mosaic,list2) 
-
-# 11. Function generating a summary of data and their variability for a specific dataframe column
 
 def dataSummary(GDs,Ns,labels,Mult,col,name,unit,method):
     DataPooled = np.empty(0)
@@ -362,3 +302,55 @@ def dataSummary(GDs,Ns,labels,Mult,col,name,unit,method):
         PooledVar = np.round(np.mean(np.abs(DataPooled*Mult - PooledMedian))*10000/PooledMedian)/100
         print('Pooled -> ' + str(PooledMedian) + ' ' + unit + ' ' + u"\u00B1" + ' ' + str(PooledVar)  + ' % (n = ' + str(nPooled) + ')' )
     
+#  Fitting a circle to a collection of points  
+def fitCircle(X,Y):
+    
+    x_m = np.mean(X)
+    y_m = np.mean(Y)    
+    
+    def calc_R(xc, yc):
+
+        return np.sqrt((X - xc) ** 2 + (Y - yc) ** 2)
+    
+    def f_2(c):
+        
+        Ri = calc_R(*c)
+        return Ri - Ri.mean()
+    
+    center_estimate = x_m, y_m
+    center_fit, _ = optimize.leastsq(f_2, center_estimate)
+
+    xc_fit, yc_fit = center_fit
+    Ri_fit       = calc_R(xc_fit, yc_fit)
+    
+     #Fitting the radius of the circle
+    R_fit        = Ri_fit.mean()
+   
+    
+    if False:
+        fig,ax = plt.subplots(dpi=250, facecolor = 'black')
+        ax.plot(X,Y,'ro')
+
+        xcircle = xc_fit + R_fit*np.cos(np.linspace(-np.pi,np.pi,100))
+        ycircle = yc_fit + R_fit*np.sin(np.linspace(-np.pi,np.pi,100))
+        ax.plot(xcircle,ycircle,'k--')
+
+    return([xc_fit, yc_fit,R_fit])
+    
+# Getting coordinates from user clicks on an image
+
+def getContourPointsCoordinates(Img,Title):
+
+    # ask user to click
+    get_ipython().run_line_magic('matplotlib', 'qt')
+    fig,ax = plt.subplots(dpi=250)
+    ax.imshow(Img,cmap='gray')
+    fig.suptitle(Title)
+    pts = np.asarray(plt.ginput(n=-1, timeout=-1))
+    plt.close()
+    get_ipython().run_line_magic('matplotlib', 'inline')
+
+    Xs = pts[:,0]
+    Ys = pts[:,1]
+
+    return(Xs,Ys)
