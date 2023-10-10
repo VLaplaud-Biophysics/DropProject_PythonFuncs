@@ -8,16 +8,14 @@ Created on Mon Oct  9 14:10:14 2023
 # plotting stuff
 import matplotlib.pyplot as plt
 
-
-
 # numbers handling
 import numpy as np
 import pandas as pd
     
-
 # images handling
 from skimage import io
 from skimage.segmentation import active_contour
+import cv2 as cv
 
 # to hide known warnings
 import warnings
@@ -28,11 +26,15 @@ import os
 import shutil
 import sys
 
+from IPython import get_ipython
+
 # my functions
 import VallapFunc_DP as vf
 
 print('Importations done.')
 
+# User input is used to identify points on the contours of both the drop and the impacted object. 
+# A circle is then fitted to those set of points and from the fitted circles, the centering of the drop is computed.
 
 def DropCentering(P,StackList,Scale, **kwargs):     
     
@@ -51,11 +53,11 @@ def DropCentering(P,StackList,Scale, **kwargs):
     
     for s in StackList:
         
-        ImgD = io.imread(P + '\\Impacts\\' + s + '_Drop.tif') # get the  image from tiff stack
-        ImgT = io.imread(P + '\\Impacts\\' + s + '_Target.tif') # get the  image from tiff stack
+        ImgT6 = io.imread(P + '\\Expe_' + s + '_Top.tif')[6] # get the image from tiff stack        
         
-        TXs,TYs = vf.getContourPointsCoordinates(ImgT,'Select on the contour of the target (enter button to validate)')
-        DXs,DYs = vf.getContourPointsCoordinates(ImgD,'Select on the contour of the drop (enter to validate)')
+        
+        TXs,TYs = vf.getContourPointsCoordinates(ImgT6,'Select on the contour of the target (enter button to validate)')
+        DXs,DYs = vf.getContourPointsCoordinates(ImgT6,'Select on the contour of the drop (enter to validate)')
         
         dropCircle = vf.fitCircle(DXs,DYs)
         targetCircle = vf.fitCircle(TXs,TYs)
@@ -89,14 +91,14 @@ def DropCentering(P,StackList,Scale, **kwargs):
         fig,ax = plt.subplots(dpi=300,facecolor='black')
         fig.suptitle('DropD : ' + str(round(dropR*2/Scale*10)/10) + ' mm. TargetD : ' +
                      str(round(targetR*2/Scale*10)/10) + ' mm. \nOffCent : ' + str(round(OffC/Scale*10)/10) + ' mm.' )
-        plt.imshow(ImgD,cmap='gray')
+        plt.imshow(ImgT6,cmap='gray')
         ax.plot(targetXc,targetYc,'.g',ms=2)
         ax.plot(targetXc+targetR*np.cos(t),targetYc+targetR*np.sin(t),'--g',lw=0.5)
         ax.plot(dropXc,dropYc,'.r',ms=2)
         ax.plot(dropXc+dropR*np.cos(t),dropYc+dropR*np.sin(t),'--r',lw=0.5)
         ax.plot([dropXc, targetXc],[dropYc,targetYc],'c',lw=0.2)
         ax.axis('off')      
-        fig.savefig(P + '\\Impacts\\'+ s + '_Circles.png')
+        fig.savefig(P + '\\Expe_' + s + '_Centering.png')
         
         if DebugPlots:
             plt.show()
@@ -106,10 +108,84 @@ def DropCentering(P,StackList,Scale, **kwargs):
     return(SD)
 
 
+def splashType(SD,P, **kwargs):
+    
+    
+    #init and read kwargs
+    DebugPlots = False
+    
+    for key, value in kwargs.items(): 
+        if key == 'debug':
+            DebugPlots = value  
+        else:
+            print('Unknown key : ' + key + '. Kwarg ignored.')
+            
+    
+    StackList = SD.index  
+
+    for s in StackList:
+        
+        TopStack = io.imread(P + '\\Expe_' + s + '_Top.tif')
+        
+        ImgT20 = TopStack[20] # get the image 
+        ImgT25 = TopStack[25] # get the image 
+        ImgT30 = TopStack[30] # get the image 
+        
+        del TopStack
+        
+        
+        SideStack = io.imread(P + '\\Expe_' + s + '_Side.tif')
+        
+        ImgS20 = SideStack[20] # get the image 
+        ImgS25 = SideStack[25] # get the image 
+        ImgS30 = SideStack[30] # get the image  
+        
+        del SideStack
+        
+        get_ipython().run_line_magic('matplotlib', 'qt')
+        
+        fig,ax = plt.subplots(dpi=150,facecolor='black',nrows = 2, ncols = 3)
+        fig.suptitle('Experiment ' + s)
+        
+        for aax in ax:
+            for aaxx in aax:                
+                aaxx.set_xticks([])
+                aaxx.set_yticks([])
+        
+        ax[0,0].imshow(ImgT20,cmap='gray')
+        ax[0,0].set_title('Img20')
+        ax[0,0].set_ylabel('Top view')
+        ax[0,1].imshow(ImgT25,cmap='gray')
+        ax[0,1].set_title('Img25')
+        ax[0,2].imshow(ImgT30,cmap='gray')
+        ax[0,2].set_title('Img30')
+        
+        ax[1,0].imshow(ImgS20,cmap='gray')
+        ax[1,0].set_ylabel('Side view')
+        ax[1,1].imshow(ImgS25,cmap='gray')
+        ax[1,2].imshow(ImgS30,cmap='gray')
+        
+        fig.tight_layout()
+        fig.show()
+        
+        impacts = (('Jet', 'Jet'),
+         ('Crown splash', 'Crown'),
+         ('Bell splash', 'Bell'),
+         ('Transition splash', 'Transition'))
+        
+        splash = vf.button_choice(impacts,'What happens on drop impact for experiment ' + s + ' ?')
+        
+        plt.close(fig)
+        
+        SD.loc[s,'SplashType'] = splash        
+        
+        get_ipython().run_line_magic('matplotlib', 'inline')
+            
+    
+    return(SD)
 
 
-
-def splashCarac(P,StackList,nimgs,SD,Scale, **kwargs):
+def splashShapeDyn(P,StackList,nimgs,SD,Scale, **kwargs):
     
     if not os.path.exists(P + '\\Splashes'):
             os.mkdir(P + '\\Splashes') # create global folder  
@@ -268,7 +344,7 @@ def splashCarac(P,StackList,nimgs,SD,Scale, **kwargs):
         ax02.set_ylabel('Splash center distance from target (mm)')  
         ax02.set_xlabel('Frames since impact')     
         plt.tight_layout()
-        fig0.savefig(P + '\\Splashes\\'+ s + '_SplashCarac.png')
+        fig0.savefig(P + '\\Splashes\\'+ s + '_splashShapeDyn.png')
         
     return(DD)
             

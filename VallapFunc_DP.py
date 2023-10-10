@@ -21,6 +21,9 @@ from scipy import optimize
 
 from IPython import get_ipython
 
+import tkinter as tk
+from tkinter import ttk
+
 # Intersection volume between sphere and cylinder
 
 def interVolSC(Rs,Rc,Dsc):
@@ -354,3 +357,51 @@ def getContourPointsCoordinates(Img,Title):
     Ys = pts[:,1]
 
     return(Xs,Ys)
+
+# Creating a multiple choice button for the user
+
+
+def button_choice(choices,questiontext):
+
+    
+    # selection window
+    root = tk.Tk()
+    root.geometry('300x220')
+    root.resizable(False, False)
+    root.title('User selection')
+    
+    # label
+    label = ttk.Label(text=questiontext)
+    label.pack(fill='x', padx=5, pady=5)
+    
+    # Variable for click result
+    result = tk.StringVar()
+
+    # what happens when the confirmation button is clicked
+    def buttonAction():
+        global EventChoice
+        EventChoice = result.get()
+        root.destroy()
+
+   # choice buttons
+    for choice in choices:
+        r = tk.Radiobutton(
+            root,
+            text=choice[0],
+            value=choice[1],
+            variable=result,
+        )
+        r.pack(fill='x', padx=5, pady=5)
+
+    # confirmation button
+    button = tk.Button(
+        root,
+        text="Validate",
+        command=buttonAction)
+    
+    button.pack(fill='x')
+
+    root.mainloop()
+    
+    
+    return(EventChoice)
