@@ -7,6 +7,8 @@ Created on Thu Oct 19 09:11:18 2023
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.interpolate import LinearNDInterpolator
+
 import DropGeometryFuncs as dgf
 
 import VallapFunc_DP as vf
@@ -171,7 +173,7 @@ class Cone:
 
         ### Plotting
         
-        fig,ax = plt.subplots(dpi = 250, ncols = 2, figsize = (9,4))
+        fig,ax = plt.subplots(dpi = 250, ncols = 2, figsize = (9,5))
         
         fig.suptitle(Title)
         ax[0].set_title('Circle config')
@@ -219,17 +221,17 @@ class Cone:
             cmap = plt.get_cmap('Blues')
             bluemap = vf.truncate_colormap(cmap,0.5,1,100)
             
-            ax[1].scatter(meshX,meshY,c=meshH,cmap=bluemap, s=2, zorder=3,label=droplabel)
+            ax[1].scatter(meshX,meshY,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
             
             meshXci,meshYci = self.Cone2Circle(meshX, meshY)
             
-            ax[0].scatter(meshXci,meshYci,c=meshH,cmap=bluemap, s=2, zorder=3,label=droplabel)
+            ax[0].scatter(meshXci,meshYci,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
             
             ax[0].plot(X,Y, 'b-', lw = 1,label='Deformed drop',zorder=4)      
             ax[1].plot(Xdrop + Rd*np.cos(tx), Ydrop + Rd*np.sin(tx), 'b-', lw = 1, label='Drop',zorder=4)
         
-        ax[0].legend(fontsize='xx-small')
-        ax[1].legend(fontsize='xx-small')
+        ax[0].legend(fontsize='xx-small',loc='upper right')
+        ax[1].legend(fontsize='xx-small',loc='upper right')
         fig.tight_layout()
         
         return(fig,ax)
@@ -243,7 +245,7 @@ class Cone:
 class Drop:
     
     
-    def __init__(self, radius, offcent, npts, speed):
+    def __init__(self, radius, offcent, npts, vel):
 
         self.Rdrop = radius
         
@@ -251,7 +253,7 @@ class Drop:
         
         self.Yd = 0
         
-        self.Speed = speed
+        self.Vel = vel
         
         self.Npts = npts
         
@@ -296,6 +298,31 @@ class Drop:
     def mesh(self):
         
         return(self.meshX,self.meshY,self.meshH)
+    
+    def Hgradient(self): 
+        
+        meshX,meshY,meshH = self.mesh() # Cone config
+        
+        Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
+        
+        Xs = np.linspace(Xmin, Xmax, 200)
+        Ys = np.linspace(Ymin, Ymax, 200)
+        
+        Xs = np.insert(Xs,0,Xmin*0.9)
+        Xs = np.append(Xs,Xmin*1.1)
+        Ys = np.insert(Ys,0,Ymin*0.9)
+        Ys = np.append(Ys,Ymin*1.1)
+        
+        Xgrid,Ygrid = np.meshgrid(Xs,Ys)
+        
+        Hgrid = dgf.SphereH(self.Rdrop,Xgrid,Ygrid,self.Xd)
+        
+        Hgrad_y, Hgrad_x = np.gradient(Hgrid)
+        
+        HgradInterp_x = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_x.flatten())
+        HgradInterp_y = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_y.flatten())
+        
+        return(HgradInterp_x,HgradInterp_y)
       
 
     ######  Impact with a cone
@@ -320,54 +347,139 @@ class Impact:
         
         self.Cone = cone
         
-        self.speednorm = drop.Speed*np.cos(self.Cone.Alpha)
+        self.velnorm = drop.Vel*np.sin(self.Cone.Alpha)
         
-        self.speedtan = drop.Speed*np.sin(self.Cone.Alpha)
+        self.veltan = drop.Vel*np.cos(self.Cone.Alpha)
     
     
     def orientation(self):
         
         meshX,meshY,meshH = self.Drop.mesh() # Cone config
         
-        Xmin, Xmax, Ymin, Ymax = self.Drop.Xd-self.Drop.Rdrop,self.Drop.Xd+self.Drop.Rdrop,self.Drop.Yd-self.Drop.Rdrop,self.Drop.Yd+self.Drop.Rdrop
+        HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
         
-        Xs = np.linspace(Xmin, Xmax, self.Drop.Npts)
-        Ys = np.linspace(Ymin, Ymax, self.Drop.Npts)
-        
-        Xs = np.insert(Xs,0,Xmin*0.9)
-        Xs = np.append(Xs,Xmin*1.1)
-        Ys = np.insert(Ys,0,Ymin*0.9)
-        Ys = np.append(Ys,Ymin*1.1)
-        
-        Xgrid,Ygrid = np.meshgrid(Xs,Ys)
-        
-        Hgrid = np.ones((len(Xs),len(Ys)))*np.min(meshH)
-        
-        xlist = Xgrid[0,:]
-        ylist = Ygrid[:,0]
-        
-        xcoords = []
-        ycoords = []
-        
-        for x,y,h in zip(meshX,meshY,meshH):
-            
-            xcoord = np.argwhere(vf.ismember(x,xlist))
-            ycoord = np.argwhere(vf.ismember(y,ylist))
-            
-            xcoords=np.append(xcoords,xcoord)
-            ycoords=np.append(ycoords,ycoord)
-            
-            Hgrid[xcoord,ycoord] = h
-        
-        o_field_y, o_field_x = np.gradient(Hgrid)
-        
-        meshOX = o_field_x[xcoords.astype(int),ycoords.astype(int)]
-        meshOY = o_field_y[xcoords.astype(int),ycoords.astype(int)]
-        
+        meshOX = HgradInterp_x(meshX,meshY) 
+        meshOY = HgradInterp_y(meshX,meshY)        
     
-        return(Xgrid[xcoords.astype(int),ycoords.astype(int)],Ygrid[xcoords.astype(int),ycoords.astype(int)],meshOX,meshOY)
+        return(meshX,meshY,meshOX,meshOY)
     
-    def plot_splash_init(self,norm,**kwargs):
+    
+    def velocity_ini(self,veltype):
+        
+        meshX,meshY,meshOX,meshOY = self.orientation() # Cone config, full drop       
+              
+        Theta,R = vf.ToCirc(meshX,meshY)
+        
+        inCone = self.Cone.IsIn(R, Theta)
+        
+        
+        meshX = meshX[inCone]
+        meshOX = meshOX[inCone]
+        meshY = meshY[inCone]
+        meshOY = meshOY[inCone]
+        
+        meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
+        meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
+
+        meshOXci = meshOXci - meshXci
+        meshOYci = meshOYci - meshYci
+         
+        normCi = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
+        
+        T,R = vf.ToCirc(meshXci,meshYci, angle = 'rad')       
+        
+        meshVXci_norm = -np.divide(meshOXci,normCi)*self.velnorm 
+        meshVYci_norm = -np.divide(meshOYci,normCi)*self.velnorm 
+        
+        meshVXci_tan = -np.cos(T)*self.veltan
+        meshVYci_tan = -np.sin(T)*self.veltan
+        
+        meshVXci = meshVXci_norm + meshVXci_tan
+        meshVYci = meshVYci_norm + meshVYci_tan
+        
+        if veltype == 'norm':
+            
+            return(meshXci,meshYci,meshVXci_norm,meshVYci_norm)
+        
+        elif veltype == 'tan':
+            
+            return(meshXci,meshYci,meshVXci_tan,meshVYci_tan)
+        
+        elif veltype == 'full':            
+            
+            return(meshXci,meshYci,meshVXci,meshVYci)
+    
+    
+    def plot_splash_init(self,**kwargs):
+        
+        Title     = 'kw: title= ''My title for the figure'''
+        Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
+        Ylabel_Ci = 'kw: ylabelCi= ''My ylabel for the circle config'''
+        Xlabel_Co = 'kw: xlabelCo= ''My xlabel for the cone config'''
+        Ylabel_Co = 'kw: ylabelCo= ''My ylabel for the cone config'''
+        NoLabels  = False
+        VelType = 'full'
+        
+        ConeColor = 'g'
+        ConeLW = 1
+        
+        for key, value in kwargs.items(): 
+            if key == 'title':
+                Title = value
+            elif key == 'xlabelCo':
+                Xlabel_Co = value
+            elif key == 'ylabelCo':
+                Ylabel_Co = value
+            elif key == 'xlabelCi':
+                Xlabel_Ci = value
+            elif key == 'ylabelCi':
+                Ylabel_Ci = value
+            elif key == 'nolabels':
+                NoLabels = value
+                if value == True:
+                    Xlabel_Ci = ''
+                    Ylabel_Ci = ''
+                    Xlabel_Co = ''
+                    Ylabel_Co = ''
+            elif key == 'conecolor':
+                ConeColor = value
+            elif key == 'conelinewidth':
+                ConeLW = value
+            elif key == 'veltype':
+                VelType = value
+
+                    
+            else:
+                print('Unknown key : ' + key + '. Kwarg ignored.')
+        
+       
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
+
+        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))        
+        
+        meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
+        
+        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci+meshXci, meshVYci+meshYci)
+        
+        meshVX = meshVX - meshX
+        meshVY = meshVY - meshY
+
+        fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY))
+        
+        
+        
+        
+        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
+                                 conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+        
+        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=5,headlength=18,headaxislength=16)
+        q1 = ax[1].quiver(meshX, meshY, np.divide(meshVX,fieldnorm), np.divide(meshVY,fieldnorm),fieldnorm,scale = 15,zorder=20,headlength=18,headaxislength=16,cmap = 'jet')
+
+        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity (mm/ms)')
+        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity (mm/ms)')
+    
+    
+    def plot_splash_traj(self,Time,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -405,51 +517,33 @@ class Impact:
                     
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
+                
+            
         
-        meshX,meshY,meshOX,meshOY = self.orientation() # Cone config
-        
-        
-        Theta,R = vf.ToCirc(meshX,meshY)
-        
-        inCone = self.Cone.IsIn(R, Theta)
-        
-        
-        meshX = meshX[inCone]
-        meshOX = meshOX[inCone]
-        meshY = meshY[inCone]
-        meshOY = meshOY[inCone]
-        
-        meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config
-        meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX, meshOY) # Circle config
-
-         
-        normCi = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
-        
-        meshVXci = meshOXci/normCi*self.speednorm + self.speedtan
-        meshVYci = meshOYci/normCi*self.speednorm
-
-        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))
-        
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci, meshVYci)
-
-        fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY))
-        
-        
-        
-        
-        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'full',conelinewidth=ConeLW,
+        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
                                  conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
-        ax[0].quiver(meshXci, meshYci, -1*np.divide(meshVXci,fieldnormCi), -1*np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 15,zorder=5)
-        ax[1].quiver(meshX, meshY, -1*np.divide(meshVX,fieldnorm), -1*np.divide(meshVY,fieldnorm),fieldnorm,scale = 15,zorder=5)
-
+        
+        
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
+        
+        trajX = np.empty((len(meshXci),len(Time)))
+        trajY = np.empty((len(meshXci),len(Time)))
+        trajT = np.empty((len(meshXci),len(Time)))
+        
+        for t,it in zip(Time,range(len(Time))):
+            
+            trajX[:,it] = meshXci + meshVXci*t # Circle config
+            trajY[:,it] = meshYci + meshVYci*t # Circle config
+            trajT[:,it] = t
+            
+        trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
-    
-    
-    
-    
-    
-    
+        sc0 = ax[0].scatter(trajX,trajY,c=trajT,s=2)
+        fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time (ms)')
+        
+        sc1 = ax[1].scatter(trajXco,trajYco,c=trajT,s=2)
+        fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time (ms)')
     
     
     
