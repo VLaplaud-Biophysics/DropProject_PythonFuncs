@@ -277,6 +277,9 @@ class Drop:
         self.meshY = Ygrid[isDrop] # in cone config
         self.meshH = dgf.SphereH(self.Rdrop,self.meshX,self.meshY,self.Xd)
         
+        ### H gradient 
+        
+        self.HgradInterp = []
         
         
     ###### Geometry related methods
@@ -301,28 +304,36 @@ class Drop:
     
     def Hgradient(self): 
         
-        meshX,meshY,meshH = self.mesh() # Cone config
+        if self.HgradInterp == []:
         
-        Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
+            meshX,meshY,meshH = self.mesh() # Cone config
+            
+            Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
+            
+            Xs = np.linspace(Xmin, Xmax, 200)
+            Ys = np.linspace(Ymin, Ymax, 200)
+            
+            Xs = np.insert(Xs,0,Xmin*0.9)
+            Xs = np.append(Xs,Xmin*1.1)
+            Ys = np.insert(Ys,0,Ymin*0.9)
+            Ys = np.append(Ys,Ymin*1.1)
+            
+            Xgrid,Ygrid = np.meshgrid(Xs,Ys)
+            
+            Hgrid = dgf.SphereH(self.Rdrop,Xgrid,Ygrid,self.Xd)
+            
+            Hgrad_y, Hgrad_x = np.gradient(Hgrid)
+            
+            HgradInterp_x = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_x.flatten())
+            HgradInterp_y = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_y.flatten())
+            
+            self.HgradInterp = (HgradInterp_x,HgradInterp_y)
+            
+            return(HgradInterp_x,HgradInterp_y)
         
-        Xs = np.linspace(Xmin, Xmax, 200)
-        Ys = np.linspace(Ymin, Ymax, 200)
-        
-        Xs = np.insert(Xs,0,Xmin*0.9)
-        Xs = np.append(Xs,Xmin*1.1)
-        Ys = np.insert(Ys,0,Ymin*0.9)
-        Ys = np.append(Ys,Ymin*1.1)
-        
-        Xgrid,Ygrid = np.meshgrid(Xs,Ys)
-        
-        Hgrid = dgf.SphereH(self.Rdrop,Xgrid,Ygrid,self.Xd)
-        
-        Hgrad_y, Hgrad_x = np.gradient(Hgrid)
-        
-        HgradInterp_x = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_x.flatten())
-        HgradInterp_y = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_y.flatten())
-        
-        return(HgradInterp_x,HgradInterp_y)
+        else:
+            
+            return(self.HgradInterp[0],self.HgradInterp[1])
       
 
     ######  Impact with a cone
@@ -350,21 +361,20 @@ class Impact:
         self.velnorm = drop.Vel*np.sin(self.Cone.Alpha)
         
         self.veltan = drop.Vel*np.cos(self.Cone.Alpha)
-    
-    
-    def orientation(self):
+        
+        
+        ## Trajectories orientation
         
         meshX,meshY,meshH = self.Drop.mesh() # Cone config
         
         HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
         
         meshOX = HgradInterp_x(meshX,meshY) 
-        meshOY = HgradInterp_y(meshX,meshY)        
-    
-        return(meshX,meshY,meshOX,meshOY)
-    
-    
-    def velocity_ini(self,veltype):
+        meshOY = HgradInterp_y(meshX,meshY) 
+        
+        self.ori = meshX,meshY,meshOX,meshOY
+        
+        ## Trajectories speed vectors
         
         meshX,meshY,meshOX,meshOY = self.orientation() # Cone config, full drop       
               
@@ -378,36 +388,51 @@ class Impact:
         meshY = meshY[inCone]
         meshOY = meshOY[inCone]
         
-        meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
+        self.meshXci,self.meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
         meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
 
-        meshOXci = meshOXci - meshXci
-        meshOYci = meshOYci - meshYci
+        meshOXci = meshOXci - self.meshXci
+        meshOYci = meshOYci - self.meshYci
          
         normCi = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
         
-        T,R = vf.ToCirc(meshXci,meshYci, angle = 'rad')       
+        T,R = vf.ToCirc(self.meshXci,self.meshYci, angle = 'rad')       
         
-        meshVXci_norm = -np.divide(meshOXci,normCi)*self.velnorm 
-        meshVYci_norm = -np.divide(meshOYci,normCi)*self.velnorm 
+        self.meshVXci_norm = -np.divide(meshOXci,normCi)*self.velnorm 
+        self.meshVYci_norm = -np.divide(meshOYci,normCi)*self.velnorm 
         
-        meshVXci_tan = -np.cos(T)*self.veltan
-        meshVYci_tan = -np.sin(T)*self.veltan
+        self.meshVXci_tan = -np.cos(T)*self.veltan
+        self.meshVYci_tan = -np.sin(T)*self.veltan
         
-        meshVXci = meshVXci_norm + meshVXci_tan
-        meshVYci = meshVYci_norm + meshVYci_tan
+        self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
+        self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
+        
+        ## Drop volume fraction in the impact
+        
+        self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone)
+        
+        
+    
+    def orientation(self):
+        
+        return(self.ori[0],self.ori[1],self.ori[2],self.ori[3])
+    
+    
+    
+    def velocity_ini(self,veltype):
         
         if veltype == 'norm':
             
-            return(meshXci,meshYci,meshVXci_norm,meshVYci_norm)
+            return(self.meshXci,self.meshYci,self.meshVXci_norm,self.meshVYci_norm)
         
         elif veltype == 'tan':
             
-            return(meshXci,meshYci,meshVXci_tan,meshVYci_tan)
+            return(self.meshXci,self.meshYci,self.meshVXci_tan,self.meshVYci_tan)
         
         elif veltype == 'full':            
             
-            return(meshXci,meshYci,meshVXci,meshVYci)
+            return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
+    
     
     
     def plot_splash_init(self,**kwargs):
@@ -520,7 +545,7 @@ class Impact:
                 
             
         
-        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
+        fig, ax = self.Cone.draw(nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
                                  conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
         
@@ -530,6 +555,8 @@ class Impact:
         trajX = np.empty((len(meshXci),len(Time)))
         trajY = np.empty((len(meshXci),len(Time)))
         trajT = np.empty((len(meshXci),len(Time)))
+        meshPts_X = np.empty((len(meshXci),len(Time)))
+        meshPts_Y = np.empty((len(meshXci),len(Time)))
         
         for t,it in zip(Time,range(len(Time))):
             
@@ -537,12 +564,57 @@ class Impact:
             trajY[:,it] = meshYci + meshVYci*t # Circle config
             trajT[:,it] = t
             
+            meshPts_X[:,it] = meshXci
+            meshPts_Y[:,it] = meshYci   
+            
+       
+        T,r =  vf.ToCirc(trajX,trajY,angle='rad')
+        
+        T = np.mod(T,2*np.pi)
+        
+        Beta = self.Cone.Beta # angle of sector to remove
+        Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
+        OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
+        T1 = np.mod(OffA - Beta/2,2*np.pi)
+        XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
+        T2 = np.mod(OffA + Beta/2,2*np.pi)
+        XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
+        if T1>T2:
+            goodPts = ((T < T1) & (T > T2))            
+        else:                
+            goodPts = ((T < T1) | (T > T2))
+        
+        badPts = ~goodPts
+        
+        badX,badY = trajX[badPts],trajY[badPts]
+
+        badT,badR = vf.ToCirc(badX-meshPts_X[badPts],badY-meshPts_Y[badPts],angle='rad')
+        
+        lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
+        
+        lz = (lx*np.abs(np.sin(badT))+np.abs(meshPts_Y[badPts]))/np.sin(Beta/2)
+
+        # Sorting the bad point on both side of the removed sector
+        closeT1 = np.abs((np.mod(badT,2*np.pi)-T1))<np.abs((np.mod(badT,2*np.pi)-T2))
+        badT[closeT1] = T1
+        badT[~closeT1] = T2
+
+        trajX[badPts],trajY[badPts] = vf.ToCart(badT,badR-lx+lz)
+        
+        trajX[badPts],trajY[badPts] = trajX[badPts]+self.Cone.Xc,trajY[badPts]+self.Cone.Yc     
+                    
+
+            
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
-        sc0 = ax[0].scatter(trajX,trajY,c=trajT,s=2)
+        order = np.argsort(trajT.flatten())
+
+        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],s=2)   
+        ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time (ms)')
         
-        sc1 = ax[1].scatter(trajXco,trajYco,c=trajT,s=2)
+        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2)
+        ax[1].set_box_aspect(1)
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time (ms)')
     
     

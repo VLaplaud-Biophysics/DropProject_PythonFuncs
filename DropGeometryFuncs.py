@@ -71,8 +71,18 @@ def SphereH(R,X,Y,Xs):
     
     return(H)
 
+###
+# 4. Fraction of the drop volume impacting the cone for a impact at distance r from the center
+## The computation is done using the formula for the intersection of a sphere and a cylinder 
 
-
+def volFrac(r,Rd,Rc):
+    F = np.empty(len(r))
+    for rr,ir in zip(r,range(len(r))):
+        if rr+Rd<=Rc:
+            F[ir] = 1
+        else:                
+            F[ir] = vf.interVolSC(Rd,Rc,rr)/(4/3*np.pi*Rd**3)
+    return(F*100)
 
 
 
