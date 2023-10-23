@@ -49,7 +49,7 @@ class Cone:
     
     def CircleParameters(self):
         
-        return(self.Rcircle,self.Beta,self.Frac)
+        return(self.Rcircle,self.Cone.Beta,self.Frac)
     
     def IsIn(self,R,Theta): 
         
@@ -92,6 +92,7 @@ class Cone:
         Ylabel_Co = 'kw: ylabelCo= ''My ylabel for the cone config'''
         NoLabels  = False
         DropView = 'full'
+        DropMesh = True
         
         ConeColor = 'g'
         ConeLW = 1
@@ -122,6 +123,8 @@ class Cone:
                 ConeLW = value
             elif key == 'dropview':
                 DropView = value
+            elif key == 'dropmesh':
+                DropMesh = value
                     
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
@@ -221,11 +224,13 @@ class Cone:
             cmap = plt.get_cmap('Blues')
             bluemap = vf.truncate_colormap(cmap,0.5,1,100)
             
-            ax[1].scatter(meshX,meshY,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
+            if DropMesh:
+                ax[1].scatter(meshX,meshY,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
             
             meshXci,meshYci = self.Cone2Circle(meshX, meshY)
             
-            ax[0].scatter(meshXci,meshYci,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
+            if DropMesh:
+                ax[0].scatter(meshXci,meshYci,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
             
             ax[0].plot(X,Y, 'b-', lw = 1,label='Deformed drop',zorder=4)      
             ax[1].plot(Xdrop + Rd*np.cos(tx), Ydrop + Rd*np.sin(tx), 'b-', lw = 1, label='Drop',zorder=4)
@@ -387,6 +392,7 @@ class Impact:
         meshOX = meshOX[inCone]
         meshY = meshY[inCone]
         meshOY = meshOY[inCone]
+        ImeshH = self.Drop.meshH[inCone]
         
         self.meshXci,self.meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
         meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
@@ -411,8 +417,26 @@ class Impact:
         
         self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone)
         
+        ## Volume fraction in the jet (in % of impacting volume)
         
-    
+        # equations for the lines of the sector borders (y = c12*x)
+        c1 = np.tan(np.pi-self.Cone.Beta/2)
+        c2 = np.tan(-np.pi+self.Cone.Beta/2)
+        
+        # equation for the line along the trajectory (y = a*x + b)
+        a = np.divide(self.meshVYci,self.meshVXci)
+        b = np.divide(((self.meshVXci+self.meshXci)*self.meshYci - (self.meshVYci+self.meshYci)*self.meshXci),self.meshVXci)
+        
+        # intersection points x coord
+        xi1 = b/(c1-a)
+        xi2 = b/(c2-a)
+        
+        # intersection if Ri1 or Ri2 is >0 and <Rcircle
+        inter = ((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle)) 
+
+        self.JetFrac  = np.round(np.sum(ImeshH[inter.astype(bool)])/np.sum(ImeshH)*1000)/10
+        
+        
     def orientation(self):
         
         return(self.ori[0],self.ori[1],self.ori[2],self.ori[3])
@@ -495,7 +519,7 @@ class Impact:
         
         
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
-                                 conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                 conecolor=ConeColor,title='JetFrac = ' + str(self.JetFrac) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
         q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=5,headlength=18,headaxislength=16)
         q1 = ax[1].quiver(meshX, meshY, np.divide(meshVX,fieldnorm), np.divide(meshVY,fieldnorm),fieldnorm,scale = 15,zorder=20,headlength=18,headaxislength=16,cmap = 'jet')
@@ -545,8 +569,8 @@ class Impact:
                 
             
         
-        fig, ax = self.Cone.draw(nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
-                                 conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
+                                 conecolor=ConeColor,title='JetFrac = ' + str(self.JetFrac) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
         
         
@@ -609,11 +633,11 @@ class Impact:
     
         order = np.argsort(trajT.flatten())
 
-        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],s=2)   
+        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)   
         ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time (ms)')
         
-        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2)
+        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)
         ax[1].set_box_aspect(1)
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time (ms)')
     
