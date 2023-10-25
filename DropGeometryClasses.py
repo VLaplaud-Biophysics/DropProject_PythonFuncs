@@ -61,31 +61,33 @@ class Cone:
         return(isInCone)
     
     
-    def Cone2Circle(self,X,Y):
+    def Cone2Circle2D(self,X,Y):
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
         
-        return(dgf.Cone2Circle(X,Y,self.Alpha,0))
+        return(dgf.Cone2Circle2D(X,Y,self.Alpha,0))
     
-    def Circle2Cone(self,X,Y): 
+    def Circle2Cone2D(self,X,Y): 
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
         
-        return(dgf.Circle2Cone(X,Y,self.Alpha,0))
+        return(dgf.Circle2Cone2D(X,Y,self.Alpha,0))
     
     
-    def Cone2CircleZ(self,X,Y,Z):
+    def Cone2Circle3D(self,X,Y,Z):
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
-        
-        Xnew,Ynew = dgf.Cone2Circle(X,Y,self.Alpha,0)
-        
         A,R = vf.ToCirc(X,Y,angle = 'rad')
-        Znew = Z - np.divide(R,np.tan(self.Alpha))
+        
+        Rnew = Z*np.cos(self.Alpha)/np.tan(self.Alpha) + R*np.cos(self.Alpha)
+
+        Znew = -np.sin(self.Alpha)*(R - Z*np.tan(self.Alpha))
+        
+        Xnew,Ynew = vf.ToCart(A,Rnew,angle='rad')
     
         return(Xnew,Ynew,Znew)
     
-    def Circle2ConeZ(self,X,Y,Z): 
+    def Circle2Cone3D(self,X,Y,Z): 
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
         
-        Xnew,Ynew = dgf.Circle2Cone(X,Y,self.Alpha,0)
+        Xnew,Ynew = dgf.Circle2Cone2D(X,Y,self.Alpha,0)
                 
         A,R = vf.ToCirc(X,Y,angle = 'rad')
         Znew = Z + np.divide(R,np.tan(self.Alpha))
@@ -251,7 +253,7 @@ class Cone:
             if DropMesh:
                 ax[1].scatter(meshX,meshY,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
             
-            meshXci,meshYci = self.Cone2Circle(meshX, meshY)
+            meshXci,meshYci = self.Cone2Circle2D(meshX, meshY)
             
             if DropMesh:
                 ax[0].scatter(meshXci,meshYci,c=meshH,cmap=bluemap, s=15, zorder=3,label=droplabel)
@@ -422,8 +424,8 @@ class Impact:
         meshOY = meshOY[inCone]
         ImeshH = self.Drop.meshH[inCone]
         
-        self.meshXci,self.meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
-        meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
+        self.meshXci,self.meshYci = self.Cone.Cone2Circle2D(meshX, meshY) # Circle config, impacting fraction
+        meshOXci,meshOYci = self.Cone.Cone2Circle2D(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
 
         meshOXci = meshOXci - self.meshXci
         meshOYci = meshOYci - self.meshYci
@@ -510,12 +512,18 @@ class Impact:
         
         tx = np.linspace(0,2*np.pi,30)
         
-        ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone*np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
-        ax1.scatter(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='b')
-        ax1.scatter(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='b')
+        meshX,meshY = self.Drop.meshX,self.Drop.meshY
+        meshA,meshR = vf.ToCirc(meshX,meshY, angle='deg')
+        inImpact = meshR<self.Cone.Rcone
+        
+        ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
+        ax1.scatter(meshX[inImpact],meshY[inImpact],self.Drop.meshZmin[inImpact]+self.Cone.Rcone/np.tan(self.Cone.Alpha),color='b')
+        ax1.scatter(meshX[~inImpact],meshY[~inImpact],self.Drop.meshZmin[~inImpact]+self.Cone.Rcone/np.tan(self.Cone.Alpha),color='gray')
+        ax1.scatter(meshX[inImpact],meshY[inImpact],self.Drop.meshZmax[inImpact]+self.Cone.Rcone/np.tan(self.Cone.Alpha),color='b')
+        ax1.scatter(meshX[~inImpact],meshY[~inImpact],self.Drop.meshZmax[~inImpact]+self.Cone.Rcone/np.tan(self.Cone.Alpha),color='gray')
         
         for t in tx:
-            ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone*np.tan(self.Cone.Alpha)],'g-')
+            ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],'g-')
         
         
         ### Circle config : removed sector to form a cone 
@@ -535,10 +543,23 @@ class Impact:
         
         ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
         ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
-        Xi,Yi,Zi1 = self.Cone.Cone2CircleZ(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha))
-        ax0.scatter(Xi,Yi,Zi1,color='b')
-        Xi,Yi,Zi2 = self.Cone.Cone2CircleZ(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha))
-        ax0.scatter(Xi,Yi,Zi2,color='b')
+        Xi,Yi,Zi1 = self.Cone.Cone2Circle3D(meshX,meshY,self.Drop.meshZmin+self.Cone.Rcone/np.tan(self.Cone.Alpha))
+        ax0.scatter(Xi[~inImpact],Yi[~inImpact],Zi1[~inImpact],color='gray')
+        ax0.scatter(Xi[inImpact],Yi[inImpact],Zi1[inImpact],color='b')
+        Xi,Yi,Zi2 = self.Cone.Cone2Circle3D(meshX,meshY,self.Drop.meshZmax+self.Cone.Rcone/np.tan(self.Cone.Alpha))
+        ax0.scatter(Xi[~inImpact],Yi[~inImpact],Zi2[~inImpact],color='gray')
+        ax0.scatter(Xi[inImpact],Yi[inImpact],Zi2[inImpact],color='b')
+        
+        
+        meshX2 = np.concatenate((meshX,meshX))
+        meshY2 = np.concatenate((meshY,meshY))
+        meshZ = np.concatenate((self.Drop.meshZmin,self.Drop.meshZmax))
+        inImpact2 = np.concatenate((inImpact,inImpact))
+        
+        
+        # for l in np.linspace(-2,15,5):
+        #     Xi,Yi,Zi3 = self.Cone.Cone2Circle3D(meshX2,meshY2,meshZ+self.Cone.Rcone/np.tan(self.Cone.Alpha)+l)
+        #     ax0.scatter(Xi[inImpact2],Yi[inImpact2],Zi3[inImpact2],color='c')
         
         ax0.set_aspect('equal')
         ax1.set_aspect('equal')
@@ -594,9 +615,9 @@ class Impact:
 
         fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))        
         
-        meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci, 0)
+        meshX, meshY = self.Cone.Circle2Cone2D(meshXci, meshYci, 0)
         
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci+meshXci, meshVYci+meshYci, 0)
+        meshVX, meshVY = self.Cone.Circle2Cone2D(meshVXci+meshXci, meshVYci+meshYci, 0)
         
         meshVX = meshVX - meshX
         meshVY = meshVY - meshY
@@ -664,13 +685,10 @@ class Impact:
 
         ax[1].scatter(NJmeshX,NJmeshY,c='r', s=15, zorder=4)
     
-        NJmeshXci,NJmeshYci = self.Cone.Cone2Circle(NJmeshX, NJmeshY)
+        NJmeshXci,NJmeshYci = self.Cone.Cone2Circle2D(NJmeshX, NJmeshY)
 
         ax[0].scatter(NJmeshXci,NJmeshYci,c='r', s=15, zorder=4)
-        
-        
-    
-    
+            
     def plot_splash_traj(self,Time,**kwargs):
         get_ipython().run_line_magic('matplotlib', 'inline')
         
@@ -741,7 +759,7 @@ class Impact:
         T = np.mod(T,2*np.pi)
         
         Beta = self.Cone.Beta # angle of sector to remove
-        Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
+        Xi,Yi = self.Cone.Cone2Circle2D(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
         OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
         T1 = np.mod(OffA - Beta/2,2*np.pi)
         XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
@@ -773,7 +791,7 @@ class Impact:
                     
 
             
-        trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        trajXco, trajYco = self.Cone.Circle2Cone2D(trajX, trajY)
     
         order = np.argsort(trajT.flatten())
 
