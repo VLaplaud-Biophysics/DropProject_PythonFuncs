@@ -13,6 +13,9 @@ import DropGeometryFuncs as dgf
 
 import VallapFunc_DP as vf
 
+from IPython import get_ipython
+get_ipython().run_line_magic('matplotlib', 'inline')
+
 
 ##############################################################
 # 1. A class for the cone where the drop is going to impact. #
@@ -60,13 +63,34 @@ class Cone:
     
     def Cone2Circle(self,X,Y):
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
-    
+        
         return(dgf.Cone2Circle(X,Y,self.Alpha,0))
     
     def Circle2Cone(self,X,Y): 
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
         
         return(dgf.Circle2Cone(X,Y,self.Alpha,0))
+    
+    
+    def Cone2CircleZ(self,X,Y,Z):
+        # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
+        
+        Xnew,Ynew = dgf.Cone2Circle(X,Y,self.Alpha,0)
+        
+        A,R = vf.ToCirc(X,Y,angle = 'rad')
+        Znew = Z - np.divide(R,np.tan(self.Alpha))
+    
+        return(Xnew,Ynew,Znew)
+    
+    def Circle2ConeZ(self,X,Y,Z): 
+        # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
+        
+        Xnew,Ynew = dgf.Circle2Cone(X,Y,self.Alpha,0)
+                
+        A,R = vf.ToCirc(X,Y,angle = 'rad')
+        Znew = Z + np.divide(R,np.tan(self.Alpha))
+        
+        return(Xnew,Ynew,Znew)
     
     
     
@@ -234,6 +258,7 @@ class Cone:
             
             ax[0].plot(X,Y, 'b-', lw = 1,label='Deformed drop',zorder=4)      
             ax[1].plot(Xdrop + Rd*np.cos(tx), Ydrop + Rd*np.sin(tx), 'b-', lw = 1, label='Drop',zorder=4)
+            ax[1].plot(Xdrop, Ydrop, 'b*', ms = 2,zorder=4)
         
         ax[0].legend(fontsize='xx-small',loc='upper right')
         ax[1].legend(fontsize='xx-small',loc='upper right')
@@ -281,6 +306,9 @@ class Drop:
         self.meshX = Xgrid[isDrop] # in cone config
         self.meshY = Ygrid[isDrop] # in cone config
         self.meshH = dgf.SphereH(self.Rdrop,self.meshX,self.meshY,self.Xd)
+        self.meshZmin = np.max(self.meshH/2)-self.meshH/2
+        self.meshZmax = self.meshZmin + self.meshH
+        
         
         ### H gradient 
         
@@ -436,6 +464,10 @@ class Impact:
 
         self.JetFrac  = np.round(np.sum(ImeshH[inter.astype(bool)])/np.sum(ImeshH)*1000)/10
         
+        self.JetMesh = meshX[inter.astype(bool)],meshY[inter.astype(bool)]
+        
+        self.NoJetMesh = meshX[~inter.astype(bool)],meshY[~inter.astype(bool)]
+        
         
     def orientation(self):
         
@@ -457,9 +489,65 @@ class Impact:
             
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
     
+    def dropSlicing(self):
+        
+        meshX,meshY,meshZmin,meshZmax = self.meshX,self.eshY,self.meshZmin,self.meshZmax
+        
     
+    ############################################################################################
+    ###################################### Plot methods ########################################
+    ############################################################################################
+    
+    
+    def plot_3Dview(self):
+        
+        get_ipython().run_line_magic('matplotlib', 'qt')
+        fig = plt.figure()
+        ax0 = fig.add_subplot(121, projection='3d')
+        ax0.set_title('Circle config')
+        ax1 = fig.add_subplot(122, projection='3d')
+        ax1.set_title('Cone config')
+        
+        tx = np.linspace(0,2*np.pi,30)
+        
+        ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone*np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
+        ax1.scatter(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='b')
+        ax1.scatter(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='b')
+        
+        for t in tx:
+            ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone*np.tan(self.Cone.Alpha)],'g-')
+        
+        
+        ### Circle config : removed sector to form a cone 
+                
+        T1 = np.pi-self.Cone.Beta/2
+        T2 = np.pi+self.Cone.Beta/2
+        
+        if T1>T2:
+            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
+        else:                
+            Ts = np.linspace(T1,T2,20)
+        
+        sectorT = np.append(np.append([T1],Ts),[T2])
+        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
+        
+        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
+        
+        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
+        ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
+        Xi,Yi,Zi1 = self.Cone.Cone2CircleZ(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha))
+        ax0.scatter(Xi,Yi,Zi1,color='b')
+        Xi,Yi,Zi2 = self.Cone.Cone2CircleZ(self.Drop.meshX,self.Drop.meshY,self.Drop.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha))
+        ax0.scatter(Xi,Yi,Zi2,color='b')
+        
+        ax0.set_aspect('equal')
+        ax1.set_aspect('equal')
+        
+        
+        
     
     def plot_splash_init(self,**kwargs):
+        get_ipython().run_line_magic('matplotlib', 'inline')
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -506,9 +594,9 @@ class Impact:
 
         fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))        
         
-        meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
+        meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci, 0)
         
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci+meshXci, meshVYci+meshYci)
+        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci+meshXci, meshVYci+meshYci, 0)
         
         meshVX = meshVX - meshX
         meshVY = meshVY - meshY
@@ -527,8 +615,64 @@ class Impact:
         fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity (mm/ms)')
         fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity (mm/ms)')
     
+    def plot_JetFrac(self,**kwargs):
+        get_ipython().run_line_magic('matplotlib', 'inline')
+        
+        Title     = 'kw: title= ''My title for the figure'''
+        Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
+        Ylabel_Ci = 'kw: ylabelCi= ''My ylabel for the circle config'''
+        Xlabel_Co = 'kw: xlabelCo= ''My xlabel for the cone config'''
+        Ylabel_Co = 'kw: ylabelCo= ''My ylabel for the cone config'''
+        NoLabels  = False
+        
+        ConeColor = 'g'
+        ConeLW = 1
+        
+        for key, value in kwargs.items(): 
+            if key == 'title':
+                Title = value
+            elif key == 'xlabelCo':
+                Xlabel_Co = value
+            elif key == 'ylabelCo':
+                Ylabel_Co = value
+            elif key == 'xlabelCi':
+                Xlabel_Ci = value
+            elif key == 'ylabelCi':
+                Ylabel_Ci = value
+            elif key == 'nolabels':
+                NoLabels = value
+                if value == True:
+                    Xlabel_Ci = ''
+                    Ylabel_Ci = ''
+                    Xlabel_Co = ''
+                    Ylabel_Co = ''
+            elif key == 'conecolor':
+                ConeColor = value
+            elif key == 'conelinewidth':
+                ConeLW = value
+
+                    
+            else:
+                print('Unknown key : ' + key + '. Kwarg ignored.')
+        
+        fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
+                                 conecolor=ConeColor,title='JetFrac = ' + str(self.JetFrac) + '. '+ Title,
+                                 xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+        
+        NJmeshX,NJmeshY = self.NoJetMesh
+        
+
+        ax[1].scatter(NJmeshX,NJmeshY,c='r', s=15, zorder=4)
+    
+        NJmeshXci,NJmeshYci = self.Cone.Cone2Circle(NJmeshX, NJmeshY)
+
+        ax[0].scatter(NJmeshXci,NJmeshYci,c='r', s=15, zorder=4)
+        
+        
+    
     
     def plot_splash_traj(self,Time,**kwargs):
+        get_ipython().run_line_magic('matplotlib', 'inline')
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -638,10 +782,12 @@ class Impact:
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time (ms)')
         
         sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)
-        ax[1].set_box_aspect(1)
+        # ax[1].set_box_aspect(1)
+        ax[1].set_xlim([-10,3])
+        ax[1].set_ylim([-5,5])
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time (ms)')
     
-    
+        return(fig,ax)
     
     
     

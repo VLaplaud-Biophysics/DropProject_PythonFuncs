@@ -73,6 +73,7 @@ def SphereH(R,X,Y,Xs):
 
 ###
 # 4. Fraction of the drop volume impacting the cone for a impact at distance r from the center
+
 ## The computation is done using the formula for the intersection of a sphere and a cylinder 
 
 def volFrac(r,Rd,Rc):
@@ -83,6 +84,20 @@ def volFrac(r,Rd,Rc):
         else:                
             F[ir] = vf.interVolSC(Rd,Rc,rr)/(4/3*np.pi*Rd**3)
     return(F*100)
+
+###
+# 5. Probability of the drop of radius Rd to fall at a distance r from the center of the cone of radius Rc
+
+## We consider the probability of falling in a stripe of width dr = 1% of Rc+Rd. 
+## The center of the drop can fall short of the cone but still have a partial splash
+
+
+def ProbaFall(r,Rd,Rc):
+    
+    # P(r) = 2*pi*r*dr / pi*(Rc+Rd)²  with dr = 1/100*(Rc+Rd)  thus P(r) = 2*r/(100*(Rc+Rd)) = r/(50*(Rc+Rd))
+    P =  r/50/(Rc+Rd)*100 # in %
+    
+    return(P)
 
 
 
