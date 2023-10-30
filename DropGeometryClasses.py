@@ -57,6 +57,12 @@ class Cone:
         
         return(isInCone)
     
+    def IsInCircle(self,R,Theta): 
+        
+        isInCircle = R<self.Rcircle
+        
+        return(isInCircle)
+    
     
     def Cone2Circle(self,X,Y):
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
@@ -436,6 +442,17 @@ class Impact:
 
         self.JetFrac  = np.round(np.sum(ImeshH[inter.astype(bool)])/np.sum(ImeshH)*1000)/10
         
+        # Sheet wideness
+        
+
+        
+        # vT,vR = vf.ToCirc(meshOXci, meshOYci, angle='rad')
+        
+        # self.SheetWide = np.max(vT)-np.min(vT)
+        
+        # self.wiXs = meshX[(vT==np.max(vT))|(vT==np.min(vT))]
+        # self.wiYs = meshY[(vT==np.max(vT))|(vT==np.min(vT))]
+        
         
     def orientation(self):
         
@@ -457,7 +474,64 @@ class Impact:
             
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
     
-    
+    def compute_traj(self,Time):
+       
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
+        
+        trajX = np.empty((len(meshXci),len(Time)))
+        trajY = np.empty((len(meshXci),len(Time)))
+        trajT = np.empty((len(meshXci),len(Time)))
+        meshPts_X = np.empty((len(meshXci),len(Time)))
+        meshPts_Y = np.empty((len(meshXci),len(Time)))
+        
+        for t,it in zip(Time,range(len(Time))):
+            
+            trajX[:,it] = meshXci + meshVXci*t # Circle config
+            trajY[:,it] = meshYci + meshVYci*t # Circle config
+            trajT[:,it] = t
+            
+            meshPts_X[:,it] = meshXci
+            meshPts_Y[:,it] = meshYci   
+            
+       
+        T,r =  vf.ToCirc(trajX,trajY,angle='rad')
+        
+        T = np.mod(T,2*np.pi)
+        
+        Beta = self.Cone.Beta # angle of sector to remove
+        Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
+        OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
+        T1 = np.mod(OffA - Beta/2,2*np.pi)
+        XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
+        T2 = np.mod(OffA + Beta/2,2*np.pi)
+        XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
+        if T1>T2:
+            goodPts = ((T < T1) & (T > T2))            
+        else:                
+            goodPts = ((T < T1) | (T > T2))
+        
+        badPts = ~goodPts
+        
+        badX,badY = trajX[badPts],trajY[badPts]
+
+        badT,badR = vf.ToCirc(badX-meshPts_X[badPts],badY-meshPts_Y[badPts],angle='rad')
+        
+        lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
+        
+        lz = (lx*np.abs(np.sin(badT))+np.abs(meshPts_Y[badPts]))/np.sin(Beta/2)
+
+        # Sorting the bad point on both side of the removed sector
+        closeT1 = np.abs((np.mod(badT,2*np.pi)-T1))<np.abs((np.mod(badT,2*np.pi)-T2))
+        badT[closeT1] = T1
+        badT[~closeT1] = T2
+
+        trajX[badPts],trajY[badPts] = vf.ToCart(badT,badR-lx+lz)
+        
+        trajX[badPts],trajY[badPts] = trajX[badPts]+self.Cone.Xc,trajY[badPts]+self.Cone.Yc    
+        
+        return(trajX,trajY,trajT)
+                    
+
     
     def plot_splash_init(self,**kwargs):
         
@@ -571,63 +645,9 @@ class Impact:
         
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
                                  conecolor=ConeColor,title='JetFrac = ' + str(self.JetFrac) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
-        
-        
-        
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
-        
-        trajX = np.empty((len(meshXci),len(Time)))
-        trajY = np.empty((len(meshXci),len(Time)))
-        trajT = np.empty((len(meshXci),len(Time)))
-        meshPts_X = np.empty((len(meshXci),len(Time)))
-        meshPts_Y = np.empty((len(meshXci),len(Time)))
-        
-        for t,it in zip(Time,range(len(Time))):
-            
-            trajX[:,it] = meshXci + meshVXci*t # Circle config
-            trajY[:,it] = meshYci + meshVYci*t # Circle config
-            trajT[:,it] = t
-            
-            meshPts_X[:,it] = meshXci
-            meshPts_Y[:,it] = meshYci   
-            
-       
-        T,r =  vf.ToCirc(trajX,trajY,angle='rad')
-        
-        T = np.mod(T,2*np.pi)
-        
-        Beta = self.Cone.Beta # angle of sector to remove
-        Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
-        OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
-        T1 = np.mod(OffA - Beta/2,2*np.pi)
-        XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
-        T2 = np.mod(OffA + Beta/2,2*np.pi)
-        XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
-        if T1>T2:
-            goodPts = ((T < T1) & (T > T2))            
-        else:                
-            goodPts = ((T < T1) | (T > T2))
-        
-        badPts = ~goodPts
-        
-        badX,badY = trajX[badPts],trajY[badPts]
-
-        badT,badR = vf.ToCirc(badX-meshPts_X[badPts],badY-meshPts_Y[badPts],angle='rad')
-        
-        lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
-        
-        lz = (lx*np.abs(np.sin(badT))+np.abs(meshPts_Y[badPts]))/np.sin(Beta/2)
-
-        # Sorting the bad point on both side of the removed sector
-        closeT1 = np.abs((np.mod(badT,2*np.pi)-T1))<np.abs((np.mod(badT,2*np.pi)-T2))
-        badT[closeT1] = T1
-        badT[~closeT1] = T2
-
-        trajX[badPts],trajY[badPts] = vf.ToCart(badT,badR-lx+lz)
-        
-        trajX[badPts],trajY[badPts] = trajX[badPts]+self.Cone.Xc,trajY[badPts]+self.Cone.Yc     
+           
                     
-
+        trajX,trajY,trajT = self.compute_traj(Time)
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
