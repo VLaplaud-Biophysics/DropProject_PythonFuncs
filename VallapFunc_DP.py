@@ -71,6 +71,7 @@ def interVolSC(Rs,Rc,Dsc):
              -(4*np.sqrt(1-(eta-rho)**2))/(9*(eta+rho))*(2*rho-4*eta+(eta+rho)*(eta-rho)**2)*(1-m)*mpm.ellipk(m)
              +4/9*np.sqrt(1-(eta-rho)**2)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
 
+    V = np.real(V)
     
     return(float(V*Rs**3))
 
