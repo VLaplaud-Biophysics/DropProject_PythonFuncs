@@ -78,8 +78,11 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     meshOC = meshOC.flatten()
     
     DropSpeed = 5 # [mm/ms]
+    rho = 997e-9 # [kg/mm3]
     
     JetFracs = np.empty(np.shape(meshDD))
+    SheetWide = np.empty(np.shape(meshDD))
+    JetNRJ = np.empty(np.shape(meshDD))
     
     Cone = dgc.Cone(ConeDiam/2,Angle)
     
@@ -104,10 +107,15 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
             Drop = dgc.Drop(dd/2,oc,50,DropSpeed)
             Impact = Cone.impact(Drop)
             JetFracs[i] = Impact.JetFrac
+            JetNRJ[i] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
+            # JetFrac[%] * VolFrac[U] * VolDrop[mm3] * WaterDensity[kg/mm3] * DropSpeed²[mm²/ms²] = JetKineticNRJ[kg.mm²/ms² = J]
+            SheetWide[i] = Impact.SheetWide
             
         else:
             
             JetFracs[i] = np.nan
+            SheetWide[i] = np.nan
+            JetNRJ[i] = np.nan
             
     
     # Impact fraction in jet
@@ -117,7 +125,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax0.set_ylabel('DropSize/ConeSize')
     
     
-    sc0 = ax0.scatter(meshOC,meshDD,c=JetFracs,cmap='jet',s=60)
+    sc0 = ax0.scatter(meshOC,meshDD,c=JetFracs,cmap='PuOr',s=100)
 
     cbar0 = plt.colorbar(sc0)
     cbar0.set_label('Impact fraction in the jet (%)')
@@ -130,10 +138,35 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax1.set_ylabel('DropSize/ConeSize')
     
     
-    sc1 = ax1.scatter(meshOC,meshDD,c=np.divide(np.subtract(100,JetFracs),JetFracs),cmap='RdYlBu', vmin=0, vmax=1.8,s=60)
+    sc1 = ax1.scatter(meshOC,meshDD,c=np.divide(np.subtract(100,JetFracs),JetFracs),cmap='plasma',s=100)
     
     cbar1 = plt.colorbar(sc1)
     cbar1.set_label('Sheet/Jet volume ratio')
     fig1.tight_layout()
+    
+    
+    # Sheet/Jet volume ratio
+    fig2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax2.set_title('Cone angle = ' + str(Angle/(2*np.pi)*360) + '°')
+    ax2.set_xlabel('Offcent/ConeRadius')
+    ax2.set_ylabel('DropSize/ConeSize')
+    
+    sc2 = ax2.scatter(meshOC,meshDD,c=SheetWide*360/(2*np.pi),cmap='cividis',s=100)
+    
+    cbar2 = plt.colorbar(sc2)
+    cbar2.set_label('Sheet opening [°]')
+    fig2.tight_layout()
+    
+    # kinetic energy in the jet
+    fig3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax3.set_title('Cone angle = ' + str(Angle/(2*np.pi)*360) + '°')
+    ax3.set_xlabel('Offcent/ConeRadius')
+    ax3.set_ylabel('DropSize/ConeSize')
+    
+    sc3 = ax3.scatter(meshOC,meshDD,c=SheetWide*360/(2*np.pi),cmap='jet',s=100)
+    
+    cbar3 = plt.colorbar(sc3)
+    cbar3.set_label('Maximum kinetic energy in jet [J]')
+    fig3.tight_layout()
 
-    return(fig0,fig1)
+    return(fig0,fig1,fig2,fig3)

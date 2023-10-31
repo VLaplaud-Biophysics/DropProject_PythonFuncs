@@ -444,14 +444,33 @@ class Impact:
         
         # Sheet wideness
         
+        trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500))
+        
+        tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
+        
+        outCircle = tR>self.Cone.Rcircle
+        
+        trajX = trajX[outCircle]
+        trajY = trajY[outCircle]
+        
+        trajXco,trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        
+        
+        tTco,tRco = vf.ToCirc(trajXco,trajYco, angle='rad')
+        
+        tTco[tTco<0] = tTco[tTco<0]+2*np.pi
+        
+        if len(outCircle)>2:
+            self.SheetWide = (np.max(tTco)-np.min(tTco))
+            self.wiXs = trajXco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
+            self.wiYs = trajYco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
+            
+        else:
+            self.SheetWide = np.nan
+            self.wiXs = np.nan
+            self.wiYs = np.nan
+        
 
-        
-        # vT,vR = vf.ToCirc(meshOXci, meshOYci, angle='rad')
-        
-        # self.SheetWide = np.max(vT)-np.min(vT)
-        
-        # self.wiXs = meshX[(vT==np.max(vT))|(vT==np.min(vT))]
-        # self.wiYs = meshY[(vT==np.max(vT))|(vT==np.min(vT))]
         
         
     def orientation(self):
@@ -658,6 +677,10 @@ class Impact:
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time (ms)')
         
         sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)
+        
+        
+        ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits')
+        
         ax[1].set_box_aspect(1)
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time (ms)')
     
