@@ -5,6 +5,7 @@ Created on Thu Oct 19 09:11:18 2023
 @author: laplaud
 """
 import numpy as np
+import numpy.matlib as ml
 import matplotlib.pyplot as plt
 
 from scipy.interpolate import LinearNDInterpolator
@@ -12,6 +13,8 @@ from scipy.interpolate import LinearNDInterpolator
 import DropGeometryFuncs as dgf
 
 import VallapFunc_DP as vf
+
+import time as time
 
 
 ##############################################################
@@ -374,112 +377,109 @@ class Impact:
         self.veltan = drop.Vel*np.cos(self.Cone.Alpha)
         
         
-        ## Trajectories orientation
+        self.ori = []
         
-        meshX,meshY,meshH = self.Drop.mesh() # Cone config
+        self.meshXci = []
+        self.meshYci = []
         
-        HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
+        self.meshVXci_norm = []
+        self.meshVYci_norm = []
         
-        meshOX = HgradInterp_x(meshX,meshY) 
-        meshOY = HgradInterp_y(meshX,meshY) 
+        self.meshVXci_tan = []
+        self.meshVYci_tan = []
         
-        self.ori = meshX,meshY,meshOX,meshOY
-        
-        ## Trajectories speed vectors
-        
-        meshX,meshY,meshOX,meshOY = self.orientation() # Cone config, full drop       
-              
-        Theta,R = vf.ToCirc(meshX,meshY)
-        
-        inCone = self.Cone.IsIn(R, Theta)
+        self.meshVXci = []
+        self.meshVYci = []
         
         
-        meshX = meshX[inCone]
-        meshOX = meshOX[inCone]
-        meshY = meshY[inCone]
-        meshOY = meshOY[inCone]
-        ImeshH = self.Drop.meshH[inCone]
         
-        self.meshXci,self.meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
-        meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
-
-        meshOXci = meshOXci - self.meshXci
-        meshOYci = meshOYci - self.meshYci
-         
-        normCi = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
-        
-        T,R = vf.ToCirc(self.meshXci,self.meshYci, angle = 'rad')       
-        
-        self.meshVXci_norm = -np.divide(meshOXci,normCi)*self.velnorm 
-        self.meshVYci_norm = -np.divide(meshOYci,normCi)*self.velnorm 
-        
-        self.meshVXci_tan = -np.cos(T)*self.veltan
-        self.meshVYci_tan = -np.sin(T)*self.veltan
-        
-        self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
-        self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
+        self.SheetOpen = []
+        self.wiXs = []
+        self.wiYs = []
         
         ## Drop volume fraction in the impact
         
-        self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone)
+        self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone) 
         
-        ## Volume fraction in the jet (in % of impacting volume)
-        
-        # equations for the lines of the sector borders (y = c12*x)
-        c1 = np.tan(np.pi-self.Cone.Beta/2)
-        c2 = np.tan(-np.pi+self.Cone.Beta/2)
-        
-        # equation for the line along the trajectory (y = a*x + b)
-        a = np.divide(self.meshVYci,self.meshVXci)
-        b = np.divide(((self.meshVXci+self.meshXci)*self.meshYci - (self.meshVYci+self.meshYci)*self.meshXci),self.meshVXci)
-        
-        # intersection points x coord
-        xi1 = b/(c1-a)
-        xi2 = b/(c2-a)
-        
-        # intersection if Ri1 or Ri2 is >0 and <Rcircle
-        inter = ((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle)) 
-
-        self.JetFrac  = np.round(np.sum(ImeshH[inter.astype(bool)])/np.sum(ImeshH)*1000)/10
-        
-        # Sheet wideness
-        
-        trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500))
-        
-        tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
-        
-        outCircle = tR>self.Cone.Rcircle
-        
-        trajX = trajX[outCircle]
-        trajY = trajY[outCircle]
-        
-        trajXco,trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        self.JetFrac = []
+               
         
         
-        tTco,tRco = vf.ToCirc(trajXco,trajYco, angle='rad')
+    
+    ###############################################################################
+    #                                                                             #
+    #                          Simulation methods                                 #
+    #                                                                             #
+    ###############################################################################
+    
+    ## Trajectories orientation
+    
+    def compute_ori(self):
         
-        tTco[tTco<0] = tTco[tTco<0]+2*np.pi
-        
-        if len(outCircle)>2:
-            self.SheetWide = (np.max(tTco)-np.min(tTco))
-            self.wiXs = trajXco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
-            self.wiYs = trajYco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
+        if self.ori == []:
             
-        else:
-            self.SheetWide = np.nan
-            self.wiXs = np.nan
-            self.wiYs = np.nan
-        
-
-        
+            meshX,meshY,meshH = self.Drop.mesh() # Cone config
+            
+            HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
+            
+            meshOX = HgradInterp_x(meshX,meshY) 
+            meshOY = HgradInterp_y(meshX,meshY) 
+            
+            self.ori = meshX,meshY,meshOX,meshOY
+            
+        return(self.ori)
+    
         
     def orientation(self):
         
-        return(self.ori[0],self.ori[1],self.ori[2],self.ori[3])
+        ori = self.compute_ori()
+        
+        return(ori[0],ori[1],ori[2],ori[3])
     
     
+    ## Trajectories speed vectors
+    
+    def compute_velocity(self):
+        
+        if self.meshVXci == []:
+    
+            meshX,meshY,meshOX,meshOY = self.orientation() # Cone config, full drop       
+                  
+            Theta,R = vf.ToCirc(meshX,meshY)
+            
+            inCone = self.Cone.IsIn(R, Theta)
+            
+            
+            meshX = meshX[inCone]
+            meshOX = meshOX[inCone]
+            meshY = meshY[inCone]
+            meshOY = meshOY[inCone]
+            
+            
+            self.meshXci,self.meshYci = self.Cone.Cone2Circle(meshX, meshY) # Circle config, impacting fraction
+            meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
+    
+            meshOXci = meshOXci - self.meshXci
+            meshOYci = meshOYci - self.meshYci
+             
+            normCi = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
+            
+            T,R = vf.ToCirc(self.meshXci,self.meshYci, angle = 'rad')       
+            
+            self.meshVXci_norm = -np.divide(meshOXci,normCi)*self.velnorm 
+            self.meshVYci_norm = -np.divide(meshOYci,normCi)*self.velnorm 
+            
+            self.meshVXci_tan = -np.cos(T)*self.veltan
+            self.meshVYci_tan = -np.sin(T)*self.veltan
+            
+            self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
+            self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
+        
+        
     
     def velocity_ini(self,veltype):
+        
+        self.compute_velocity()
         
         if veltype == 'norm':
             
@@ -493,25 +493,25 @@ class Impact:
             
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
     
+    
+    
+    
+    
     def compute_traj(self,Time):
        
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
+               
+        trajT = ml.repmat(Time,len(meshXci),1).T
         
-        trajX = np.empty((len(meshXci),len(Time)))
-        trajY = np.empty((len(meshXci),len(Time)))
-        trajT = np.empty((len(meshXci),len(Time)))
-        meshPts_X = np.empty((len(meshXci),len(Time)))
-        meshPts_Y = np.empty((len(meshXci),len(Time)))
+        meshPts_X = ml.repmat(meshXci,len(Time),1)
+        meshPts_Y = ml.repmat(meshYci,len(Time),1)
         
-        for t,it in zip(Time,range(len(Time))):
-            
-            trajX[:,it] = meshXci + meshVXci*t # Circle config
-            trajY[:,it] = meshYci + meshVYci*t # Circle config
-            trajT[:,it] = t
-            
-            meshPts_X[:,it] = meshXci
-            meshPts_Y[:,it] = meshYci   
-            
+        meshPts_VX = ml.repmat(meshVXci,len(Time),1)
+        meshPts_VY = ml.repmat(meshVYci,len(Time),1)     
+        
+        trajX = meshPts_X + np.multiply(meshPts_VX,trajT)
+        trajY = meshPts_Y + np.multiply(meshPts_VY,trajT)
+        
        
         T,r =  vf.ToCirc(trajX,trajY,angle='rad')
         
@@ -549,8 +549,84 @@ class Impact:
         trajX[badPts],trajY[badPts] = trajX[badPts]+self.Cone.Xc,trajY[badPts]+self.Cone.Yc    
         
         return(trajX,trajY,trajT)
+    
+        ## Volume fraction in the jet (in % of impacting volume)
+        
+        def compute_JetFrac(self):
+            
+            if self.JetFrac == []:
+                
+                self.compute_velocity()
+                
+                # equations for the lines of the sector borders (y = c12*x)
+                c1 = np.tan(np.pi-self.Cone.Beta/2)
+                c2 = np.tan(-np.pi+self.Cone.Beta/2)
+                
+                # equation for the line along the trajectory (y = a*x + b)
+                a = np.divide(self.meshVYci,self.meshVXci)
+                b = np.divide(((self.meshVXci+self.meshXci)*self.meshYci - (self.meshVYci+self.meshYci)*self.meshXci),self.meshVXci)
+                
+                # intersection points x coord
+                xi1 = b/(c1-a)
+                xi2 = b/(c2-a)
+                
+                # intersection if Ri1 or Ri2 is >0 and <Rcircle
+                inter = ((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle)) 
+                
+                
+        
+                Theta,R = vf.ToCirc(self.Drop.meshX,self.Drop.meshY)
+                
+                inCone = self.Cone.IsIn(R, Theta)
+                ImeshH = self.Drop.meshH[inCone]
+                self.JetFrac  = np.round(np.sum(ImeshH[inter.astype(bool)])/np.sum(ImeshH)*1000)/10
+                
+            return(self.JetFrac)
+    
+    # Sheet opening
+    
+    def compute_SheetOpening(self):
+        
+        if self.SheetOpen == []:
+    
+            trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500))
+            
+            tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
+            
+            outCircle = tR>self.Cone.Rcircle
+            
+            trajX = trajX[outCircle]
+            trajY = trajY[outCircle]
+            
+            trajXco,trajYco = self.Cone.Circle2Cone(trajX, trajY)
+            
+            
+            tTco,tRco = vf.ToCirc(trajXco,trajYco, angle='rad')
+            
+            tTco[tTco<0] = tTco[tTco<0]+2*np.pi
+            
+            if len(outCircle)>2:
+                self.SheetOpen = (np.max(tTco)-np.min(tTco))
+                self.wiXs = trajXco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
+                self.wiYs = trajYco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
+                
+            else:
+                self.SheetOpen = np.nan
+                self.wiXs = np.nan
+                self.wiYs = np.nan
+                
+    def SheetOpening(self):
+        
+        self.compute_SheetOpening()
+        
+        return(self.SheetOpen,self.wiXs,self.wiYs)
+    
                     
-
+    ###############################################################################
+    #                                                                             #
+    #                          Display methods                                    #
+    #                                                                             #
+    ###############################################################################
     
     def plot_splash_init(self,**kwargs):
         

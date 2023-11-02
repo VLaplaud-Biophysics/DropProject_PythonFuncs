@@ -109,7 +109,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
             JetFracs[i] = Impact.JetFrac
             JetNRJ[i] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
             # JetFrac[%] * VolFrac[U] * VolDrop[mm3] * WaterDensity[kg/mm3] * DropSpeed²[mm²/ms²] = JetKineticNRJ[kg.mm²/ms² = J]
-            SheetWide[i] = Impact.SheetWide
+            SheetWide[i] = Impact.SheetOpening()
             
         else:
             
@@ -163,10 +163,10 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax3.set_xlabel('Offcent/ConeRadius')
     ax3.set_ylabel('DropSize/ConeSize')
     
-    sc3 = ax3.scatter(meshOC,meshDD,c=SheetWide*360/(2*np.pi),cmap='jet',s=100)
+    sc3 = ax3.scatter(meshOC,meshDD,c=JetNRJ*1000,cmap='jet',s=100)
     
     cbar3 = plt.colorbar(sc3)
-    cbar3.set_label('Maximum kinetic energy in jet [J]')
+    cbar3.set_label('Maximum kinetic energy in jet [mJ]')
     fig3.tight_layout()
 
     return(fig0,fig1,fig2,fig3)
