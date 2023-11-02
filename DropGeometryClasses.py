@@ -619,7 +619,7 @@ class Impact:
             
             tTco[tTco<0] = tTco[tTco<0]+2*np.pi
             
-            if len(outCircle)>2:
+            if len(tTco)>2:
                 self.SheetOpen = (np.max(tTco)-np.min(tTco))
                 self.wiXs = trajXco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]
                 self.wiYs = trajYco[(tTco==np.max(tTco))|(tTco==np.min(tTco))]

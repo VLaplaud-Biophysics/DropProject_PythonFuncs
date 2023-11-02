@@ -72,6 +72,8 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams):
 
 def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     
+    npts = len(RelDropDiams)
+    
     meshDD,meshOC = np.meshgrid(RelDropDiams,RelOffCents)
     
     meshDD = meshDD.flatten()
@@ -105,7 +107,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
         if oc < OffCmax:
 
             Drop = dgc.Drop(dd/2,oc,50,DropSpeed)
-            Impact = Cone.impact(Drop)
+            Impact = Cone.impact(Drop,'Hmax')
             JetFracs[i] = Impact.compute_JetFrac()
             JetNRJ[i] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
             # JetFrac[%] * VolFrac[U] * VolDrop[mm3] * WaterDensity[kg/mm3] * DropSpeed²[mm²/ms²] = JetKineticNRJ[kg.mm²/ms² = J]
@@ -116,7 +118,8 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
             JetFracs[i] = np.nan
             SheetWide[i] = np.nan
             JetNRJ[i] = np.nan
-            
+       
+    pointSize = 250000/npts**2
     
     # Impact fraction in jet
     fig0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
@@ -125,7 +128,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax0.set_ylabel('DropSize/ConeSize')
     
     
-    sc0 = ax0.scatter(meshOC,meshDD,c=JetFracs,cmap='PuOr',s=100)
+    sc0 = ax0.scatter(meshOC,meshDD,c=JetFracs,cmap='PuOr',s=pointSize)
 
     cbar0 = plt.colorbar(sc0)
     cbar0.set_label('Impact fraction in the jet (%)')
@@ -138,7 +141,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax1.set_ylabel('DropSize/ConeSize')
     
     
-    sc1 = ax1.scatter(meshOC,meshDD,c=np.divide(np.subtract(100,JetFracs),JetFracs),cmap='plasma',s=100)
+    sc1 = ax1.scatter(meshOC,meshDD,c=np.divide(np.subtract(100,JetFracs),JetFracs),cmap='plasma',s=pointSize)
     
     cbar1 = plt.colorbar(sc1)
     cbar1.set_label('Sheet/Jet volume ratio')
@@ -151,7 +154,7 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
     ax2.set_xlabel('Offcent/ConeRadius')
     ax2.set_ylabel('DropSize/ConeSize')
     
-    sc2 = ax2.scatter(meshOC,meshDD,c=SheetWide*360/(2*np.pi),cmap='cividis',s=100)
+    sc2 = ax2.scatter(meshOC,meshDD,c=SheetWide*360/(2*np.pi),cmap='cividis',s=pointSize)
     
     cbar2 = plt.colorbar(sc2)
     cbar2.set_label('Sheet opening [°]')
