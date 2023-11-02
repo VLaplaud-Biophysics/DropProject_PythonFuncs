@@ -421,9 +421,7 @@ class Impact:
         if self.ori == []:
             
             meshX,meshY,meshH = self.Drop.mesh() # Cone config
-            meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY)
-            
-            
+            meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY)            
             
             if self.oriType == 'Hgrad':
             
