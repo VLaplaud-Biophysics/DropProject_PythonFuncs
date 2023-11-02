@@ -106,10 +106,10 @@ def PhaseDiagrams(Angle,ConeDiam,RelDropDiams,RelOffCents):
 
             Drop = dgc.Drop(dd/2,oc,50,DropSpeed)
             Impact = Cone.impact(Drop)
-            JetFracs[i] = Impact.JetFrac
+            JetFracs[i] = Impact.compute_JetFrac()
             JetNRJ[i] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
             # JetFrac[%] * VolFrac[U] * VolDrop[mm3] * WaterDensity[kg/mm3] * DropSpeed²[mm²/ms²] = JetKineticNRJ[kg.mm²/ms² = J]
-            SheetWide[i] = Impact.SheetOpening()
+            SheetWide[i] = Impact.SheetOpening()[0]
             
         else:
             
