@@ -20,24 +20,28 @@ from IPython import get_ipython
 
 ###
 # 1. Plotting function for different volume fractions
-def plotFracs(Angle,npts,DropDiam,ConeDiams):
+def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velType):
     
     DropSpeed = 5 # [mm/ms] 
 
-    fig,ax = plt.subplots(dpi =200)
-    fig.suptitle('Cone of ' + str(round(Angle*180/np.pi)) + '° angle')
-    ax.set_xlabel('Off-centering/Cone radius')
-    ax.set_ylabel('Drop fraction in the jet (%)')
 
     fig1,ax1 = plt.subplots(dpi =200)
     fig1.suptitle('Cone of ' + str(round(Angle*180/np.pi)) + '° angle')
     ax1.set_xlabel('Off-centering/Cone radius')
     ax1.set_ylabel('Impact fraction in the jet (%)')
-
+    
+    
     fig2,ax2 = plt.subplots(dpi =200)
     fig2.suptitle('Cone of ' + str(round(Angle*180/np.pi)) + '° angle')
     ax2.set_xlabel('Off-centering/Cone radius')
     ax2.set_ylabel('Sheet fraction/Jet fraction')
+
+    
+    fig3,ax3 = plt.subplots(dpi =200)
+    fig3.suptitle('Cone of ' + str(round(Angle*180/np.pi)) + '° angle')
+    ax3.set_xlabel('Off-centering/Cone radius')
+    ax3.set_ylabel('Drop fraction in the jet (%)')
+
 
     cpt = 0
     
@@ -53,28 +57,28 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams):
     
         Cone = dgc.Cone(cr,Angle)
         
-        OffCmax = 0.495*(cd+DropDiam)
+        OffCmax = 0.45*(cd+DropDiam)
 
         OffCents = np.linspace(0.1,OffCmax,npts)
         Drops = [dgc.Drop(DropDiam/2,x,50,DropSpeed) for x in OffCents]
-        Impacts = [Cone.impact(D) for D in Drops]
-        JetFracs = [I.JetFrac for I in Impacts]
-        DropFracs = [I.JetFrac*I.VolFrac/100 for I in Impacts]
+        Impacts = [Cone.impact(D,oriType) for D in Drops]
+        JetFracs = [I.compute_JetFrac(velType) for I in Impacts]
+        DropFracs = [I.compute_JetFrac(velType)*I.VolFrac/100 for I in Impacts]
 
         lab = 'Drop size / cone size = ' + str(np.round(100*DropDiam/cd)/100)
         
-        ax.plot(OffCents/cr,DropFracs,'-*',label=lab)
+        ax3.plot(OffCents/cr,DropFracs,'-*',label=lab)
         ax1.plot(OffCents/cr,JetFracs,'-*',label=lab)
         ax2.plot(OffCents/cr,np.divide(np.subtract(100,JetFracs),JetFracs),'-*',label=lab)
 
-        ax.legend()
+        ax3.legend()
         ax1.legend()
         ax2.legend()
      
 ###
 # 2. Parameter space diagrams
 
-def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label):
+def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagDim,label):
     
     npts = len(Angles)
     
@@ -94,6 +98,26 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
     
     
     nsim = meshDD.size
+    
+    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label
+
+        
+    os.makedirs(savepath + '\JetFrac\FixedAngle') # create folder
+    os.makedirs(savepath + '\JetFrac\FixedDrop') # create folder
+    os.makedirs(savepath + '\JetFrac\FixedDist') # create folder
+
+    os.makedirs(savepath + '\VolRatio\FixedAngle') # create folder
+    os.makedirs(savepath + '\VolRatio\FixedDrop') # create folder
+    os.makedirs(savepath + '\VolRatio\FixedDist') # create folder
+     
+    os.makedirs(savepath + '\JetNRJ\FixedAngle') # create folder
+    os.makedirs(savepath + '\JetNRJ\FixedDrop') # create folder
+    os.makedirs(savepath + '\JetNRJ\FixedDist') # create folder
+     
+    os.makedirs(savepath + '\SheetOpening\FixedAngle') # create folder
+    os.makedirs(savepath + '\SheetOpening\FixedDrop') # create folder
+    os.makedirs(savepath + '\SheetOpening\FixedDist') # create folder
+    
     
     cpt = 0
     
@@ -115,10 +139,10 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
 
             Drop = dgc.Drop(dd/2,oc,50,DropSpeed)
             Impact = Cone.impact(Drop,oriType)
-            JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetFrac()
+            JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetFrac(velType)
             JetNRJ[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
             # JetFrac[%] * VolFrac[U] * VolDrop[mm3] * WaterDensity[kg/mm3] * DropSpeed²[mm²/ms²] = JetKineticNRJ[kg.mm²/ms² = J]
-            JetNRJproba[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac*Impact.JetFrac/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2*oc/OffCmax # 
+            JetNRJproba[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac*Impact.compute_JetFrac(velType)/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2*oc/OffCmax # 
             SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
             
         else:
@@ -128,34 +152,22 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             JetNRJ[idx[0][0],idx[0][1],idx[0][2]] = np.nan
             JetNRJproba[idx[0][0],idx[0][1],idx[0][2]] = np.nan
       
+     
+             
+  
         
+    np.save(savepath + '\Data_JetFracs_' + str(npts) + 'npts.npy',JetFracs)
+    np.save(savepath + '\Data_SheetWide_' + str(npts) + 'npts.npy',SheetWide)
+    np.save(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy',JetNRJ)
+    np.save(savepath + '\Data_JetNRJproba_' + str(npts) + 'npts.npy',JetNRJproba)
+          
+     
     if DiagDim == 2:
         
         print('\n\nMaking and saving figures',end='\r')
         
         pointSize = 250000/npts**2 
-        
-        
-        savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label
-        
-                
-        if not os.path.exists(savepath):
-            os.mkdir(savepath) # create folder
-        
-        if not os.path.exists(savepath + '\JetFrac'):
-            os.mkdir(savepath + '\JetFrac') # create folder
-            
-            
-        if not os.path.exists(savepath + '\VolRatio'):
-            os.mkdir(savepath + '\VolRatio') # create folder
-            
-            
-        if not os.path.exists(savepath + '\SheetOpening'):
-            os.mkdir(savepath + '\SheetOpening') # create folder
-            
-            
-        if not os.path.exists(savepath + '\JetNRJ'):
-            os.mkdir(savepath + '\JetNRJ') # create folder
+                    
         
         ########### Fixed angle diagrams ###########       
 
@@ -171,11 +183,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],cmap='PuOr',s=pointSize)
 
+            # sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
             f0.tight_layout()
             
-            f0.savefig(savepath + '\JetFrac\FxdADgm_'
+            f0.savefig(savepath + '\JetFrac\FixedAngle\FxdADgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_JetFrac.png')
 
             plt.close(f0)
@@ -190,13 +204,16 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             ax1.set_ylabel('DropSize/ConeSize')
             
             
-            sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:]),cmap='plasma',s=pointSize)
+            sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
+                              ,cmap='plasma',s=pointSize)
+            # sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
+            #                   ,vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
             f1.tight_layout()
             
-            f1.savefig(savepath + '\VolRatio\FxdADgm_'
+            f1.savefig(savepath + '\VolRatio\FixedAngle\FxdADgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_VolRatio.png')
 
             plt.close(f1)
@@ -205,7 +222,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             print('Making and saving figures.     ',end='\r')
             
             
-            # Sheet/Jet volume ratio
+            # Sheet opening
             f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
             ax2.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
             ax2.set_xlabel('Offcent/ConeRadius')
@@ -213,11 +230,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
+            # sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')
             f2.tight_layout()
             
-            f2.savefig(savepath + '\SheetOpening\FxdADgm_'
+            f2.savefig(savepath + '\SheetOpening\FixedAngle\FxdADgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_SheetOpen.png')
 
             plt.close(f2)
@@ -233,11 +252,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,cmap='jet',s=pointSize)
             
+            # sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
             f3.tight_layout()
             
-            f3.savefig(savepath + '\JetNRJ\FxdADgm_'
+            f3.savefig(savepath + '\JetNRJ\FixedAngle\FxdADgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_JetNRJ.png')
 
             plt.close(f3)
@@ -260,11 +281,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],cmap='PuOr',s=pointSize)
 
+            # sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
             f0.tight_layout()
             
-            f0.savefig(savepath + '\JetFrac\FxdDrDgm_'
+            f0.savefig(savepath + '\JetFrac\FixedDrop\FxdDrDgm_'
                + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_JetFrac.png')
     
             plt.close(f0)
@@ -281,13 +304,17 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             ax1.set_xlim([0,np.max(RelOffCents)])
             
             
-            sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),cmap='plasma',s=pointSize)
+            sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),
+                              cmap='plasma',s=pointSize)
+            
+            # sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),
+            #                   vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
             f1.tight_layout()
             
-            f1.savefig(savepath + '\VolRatio\FxdDrDgm_'
+            f1.savefig(savepath + '\VolRatio\FixedDrop\FxdDrDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_VolRatio.png')
             
             plt.close(f1)
@@ -296,7 +323,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             print('Making and saving figures.     ',end='\r')
             
 
-            # Sheet/Jet volume ratio
+            # Sheet opening
             f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
             ax2.set_title('DropSize/ConeSize : ' + str(round(rdd*10)/10))
             ax2.set_xlabel('Offcent/ConeRadius')
@@ -305,11 +332,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
+            # sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')
             f2.tight_layout()
             
-            f2.savefig(savepath + '\SheetOpening\FxdDrDgm_'
+            f2.savefig(savepath + '\SheetOpening\FixedDrop\FxdDrDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_SheetOpen.png')
             
             plt.close(f2)
@@ -327,11 +356,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,cmap='jet',s=pointSize)
             
+            # sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
             f3.tight_layout()
             
-            f3.savefig(savepath + '\JetNRJ\FxdDrDgm_'
+            f3.savefig(savepath + '\JetNRJ\FixedDrop\FxdDrDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_JetNRJ.png')
             
             plt.close(f3)
@@ -352,7 +383,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             cbar4.set_label('Probable kinetic energy in a jet [mJ]')
             f4.tight_layout()
             
-            f4.savefig(savepath + '\JetNRJ\FxdDrDgm_'
+            f4.savefig(savepath + '\JetNRJ\FixedDrop\FxdDrDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_JetNRJproba.png')
             
             plt.close(f4)
@@ -376,11 +407,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],cmap='PuOr',s=pointSize)
         
+            # sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+        
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
             f0.tight_layout()
             
-            f0.savefig(savepath + '\JetFrac\FxdDiDgm_'
+            f0.savefig(savepath + '\JetFrac\FixedDist\FxdDiDgm_'
              + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_JetFrac.png')
   
             plt.close(f0)
@@ -396,13 +429,17 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             ax1.set_xlim([0,np.max(RelDropDiams)])
             
             
-            sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),cmap='plasma',s=pointSize)
+            sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),
+                              cmap='plasma',s=pointSize)
+            
+            # sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),
+            #                   vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
             f1.tight_layout()
             
-            f1.savefig(savepath + '\VolRatio\FxdDiDgm_'
+            f1.savefig(savepath + '\VolRatio\FixedDist\FxdDiDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_VolRatio.png')
             
             plt.close(f1)
@@ -419,11 +456,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
+            # sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')
             f2.tight_layout()
             
-            f2.savefig(savepath + '\SheetOpening\FxdDiDgm_'
+            f2.savefig(savepath + '\SheetOpening\FixedDist\FxdDiDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_SheetOpen.png')
             
             plt.close(f2)
@@ -440,11 +479,13 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             
             sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,cmap='jet',s=pointSize)
             
+            # sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
             f3.tight_layout()
             
-            f3.savefig(savepath + '\JetNRJ\FxdDiDgm_'
+            f3.savefig(savepath + '\JetNRJ\FixedDist\FxdDiDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_JetNRJ.png')
             
             plt.close(f3)
@@ -465,7 +506,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,DiagDim,label
             cbar4.set_label('Probable kinetic energy in a jet [mJ]')
             f4.tight_layout()
             
-            f4.savefig(savepath + '\JetNRJ\FxdDiDgm_'
+            f4.savefig(savepath + '\JetNRJ\FixedDist\FxdDiDgm_'
                        + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_JetNRJproba.png')
             
             plt.close(f4)
