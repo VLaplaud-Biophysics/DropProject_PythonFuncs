@@ -144,9 +144,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
                 
             if oc < OffCmax:
                 
-                Cone = dgc.Cone(ConeDiam/2,a)
-    
-                Drop = dgc.Drop(dd/2,oc,60,DropSpeed)
+                Cone = dgc.Cone(ConeDiam/2,a)                
+                
+                Drop = dgc.Drop(dd/2,oc,71,DropSpeed) # ~5000 points in the drop
                 Impact = Cone.impact(Drop,oriType)
                 JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetFrac(velType)
                 JetNRJ[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac*Impact.compute_JetFrac(velType)/100*4/3*np.pi*(dd/2)**3*rho*DropSpeed**2 # [J]
@@ -187,9 +187,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax0.set_ylabel('DropSize/ConeSize')
             
             
-            sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],cmap='PuOr',s=pointSize)
+            # sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],cmap='PuOr',s=pointSize)
 
-            # sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+            sc0 = ax0.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetFracs[:,ia,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
 
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
@@ -210,10 +210,10 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax1.set_ylabel('DropSize/ConeSize')
             
             
-            sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
-                              ,cmap='plasma',s=pointSize)
             # sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
-            #                   ,vmin=0, vmax = 3,cmap='plasma',s=pointSize)
+            #                   ,cmap='plasma',s=pointSize)
+            sc1 = ax1.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
+                              ,vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
@@ -234,9 +234,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax2.set_xlabel('Offcent/ConeRadius')
             ax2.set_ylabel('DropSize/ConeSize')
             
-            sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
+            # sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
-            # sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            sc2 = ax2.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=SheetWide[:,ia,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
             
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')
@@ -256,9 +256,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax3.set_xlabel('Offcent/ConeRadius')
             ax3.set_ylabel('DropSize/ConeSize')
             
-            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,cmap='jet',s=pointSize)
+            # sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,cmap='jet',s=pointSize)
             
-            # sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -285,9 +285,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax0.set_xlim([0,np.max(RelOffCents)])
             
             
-            sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],cmap='PuOr',s=pointSize)
-
-            # sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+            # sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],cmap='PuOr',s=pointSize)
+# 
+            sc0 = ax0.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetFracs[idd,:,:],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
 
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
@@ -310,11 +310,11 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax1.set_xlim([0,np.max(RelOffCents)])
             
             
-            sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),
-                              cmap='plasma',s=pointSize)
-            
             # sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),
-            #                   vmin=0, vmax = 3,cmap='plasma',s=pointSize)
+                              # cmap='plasma',s=pointSize)
+            
+            sc1 = ax1.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[idd,:,:]),JetFracs[idd,:,:]),
+                              vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
@@ -336,9 +336,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax2.set_ylabel('Cone angle [°]')
             ax2.set_xlim([0,np.max(RelOffCents)])
             
-            sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
+            # sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
-            # sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            sc2 = ax2.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=SheetWide[idd,:,:]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
             
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')
@@ -359,10 +359,10 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax3.set_xlabel('Offcent/ConeRadius')
             ax3.set_ylabel('Cone angle [°]')
             ax3.set_xlim([0,np.max(RelOffCents)])
+            # 
+            # sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,cmap='jet',s=pointSize)
             
-            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,cmap='jet',s=pointSize)
-            
-            # sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -390,9 +390,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax0.set_xlim([0,np.max(RelDropDiams)])
             
             
-            sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],cmap='PuOr',s=pointSize)
+            # sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],cmap='PuOr',s=pointSize)
         
-            # sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
+            sc0 = ax0.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetFracs[:,:,ioc],vmin=0, vmax = 100,cmap='PuOr',s=pointSize)
         
             cbar0 = plt.colorbar(sc0)
             cbar0.set_label('Impact fraction in the jet (%)')
@@ -414,11 +414,11 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax1.set_xlim([0,np.max(RelDropDiams)])
             
             
-            sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),
-                              cmap='plasma',s=pointSize)
-            
             # sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),
-            #                   vmin=0, vmax = 3,cmap='plasma',s=pointSize)
+            #                   cmap='plasma',s=pointSize)
+            
+            sc1 = ax1.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=np.divide(np.subtract(100,JetFracs[:,:,ioc]),JetFracs[:,:,ioc]),
+                              vmin=0, vmax = 3,cmap='plasma',s=pointSize)
             
             cbar1 = plt.colorbar(sc1)
             cbar1.set_label('Sheet/Jet volume ratio')
@@ -439,9 +439,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax2.set_ylabel('Cone angle [°]')
             ax2.set_xlim([0,np.max(RelDropDiams)])
             
-            sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
+            # sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
             
-            # sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
+            sc2 = ax2.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),vmin=0, vmax = 360,cmap='cividis',s=pointSize)
             
             cbar2 = plt.colorbar(sc2)
             cbar2.set_label('Sheet opening [°]')

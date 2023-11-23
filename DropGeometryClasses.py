@@ -276,13 +276,17 @@ class Drop:
         self.Npts = npts
         
         ### Mesh of points in the drop
-                
+        
+        
+        ## Carthesian fixed mesh + borderpoints
+        
         Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
         
         Xs = np.linspace(Xmin, Xmax, npts)
         Ys = np.linspace(Ymin, Ymax, npts)
         
         Xgrid,Ygrid = np.meshgrid(Xs,Ys)
+        
 
         XgridF = Xgrid.flatten()
         YgridF = Ygrid.flatten()
@@ -290,13 +294,26 @@ class Drop:
         Agrid,Rgrid = vf.ToCirc(XgridF,YgridF)
 
         isDrop = self.IsIn(Rgrid,Agrid)
+        
+        Rmax = self.Rdrop
+        
+        RgridBorder = np.ones((1,2*npts))*Rmax
+        AgridBorder = np.linspace(0,2*np.pi,2*npts)
+        
+        XgridBorder,YgridBorder = vf.ToCart(AgridBorder,RgridBorder,angle='rad')
+        
+        XgridF = np.append(XgridF[isDrop],XgridBorder+self.Xd)
+        YgridF = np.append(YgridF[isDrop],YgridBorder+self.Yd)
+        
 
         self.meshXFull = Xgrid # in cone config
         self.meshYFull = Ygrid # in cone config
         
-        self.meshX = XgridF[isDrop] # in cone config
-        self.meshY = YgridF[isDrop] # in cone config
+        self.meshX = XgridF # in cone config
+        self.meshY = YgridF # in cone config
         self.meshH = dgf.SphereH(self.Rdrop,self.meshX,self.meshY,self.Xd)
+        
+      
         
         ### H gradient 
         
@@ -315,7 +332,7 @@ class Drop:
     
     def IsIn(self,R,Theta): 
         
-        isInDrop = R**2 - 2*R*(self.Xd*np.cos(Theta)+self.Yd*np.sin(Theta)) + self.Xd**2 + self.Yd**2 < self.Rdrop**2
+        isInDrop = R**2 - 2*R*(self.Xd*np.cos(Theta)+self.Yd*np.sin(Theta)) + self.Xd**2 + self.Yd**2 <= self.Rdrop**2
         
         return(isInDrop)
         
@@ -485,17 +502,30 @@ class Impact:
 
             
             normCi = np.sqrt(np.square(self.meshOXci)+np.square(self.meshOYci))
-            
-            T,R = vf.ToCirc(self.meshXci,self.meshYci, angle = 'rad')       
+                  
             
             self.meshVXci_norm = np.divide(self.meshOXci,normCi)*self.velnorm 
             self.meshVYci_norm = np.divide(self.meshOYci,normCi)*self.velnorm 
             
-            self.meshVXci_tan = -np.cos(T)*self.veltan
-            self.meshVYci_tan = -np.sin(T)*self.veltan
             
-            self.meshVXci_tan_div0 = np.ones(np.shape(self.meshVXci_tan))*np.mean(self.meshVXci_tan)
-            self.meshVYci_tan_div0 = np.ones(np.shape(self.meshVYci_tan))*np.mean(self.meshVYci_tan)
+            meshX,meshY = self.Cone.Circle2Cone(meshXci, meshYci)
+            T,R = vf.ToCirc(meshX,meshY, angle = 'rad') 
+            
+            
+            meshVX_tan = -np.cos(T)*self.veltan*np.sin(self.Cone.Alpha)
+            meshVY_tan = -np.sin(T)*self.veltan*np.sin(self.Cone.Alpha)
+            
+            Tci,Rci = vf.ToCirc(meshXci,meshYci, angle = 'rad') 
+            self.meshVXci_tan = -np.cos(Tci)*self.veltan
+            self.meshVYci_tan = -np.sin(Tci)*self.veltan
+            
+            meshVX_tan_div0 = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
+            meshVY_tan_div0 = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
+            
+            meshVXci_tan_div0,meshVYci_tan_div0 = self.Cone.Cone2Circle(meshX+meshVX_tan_div0*0.01, meshY+meshVY_tan_div0*0.01)
+            
+            self.meshVXci_tan_div0 = (meshVXci_tan_div0-meshXci)*100
+            self.meshVYci_tan_div0 = (meshVYci_tan_div0-meshYci)*100
             
             self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
             self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
@@ -533,9 +563,9 @@ class Impact:
 
     
     
-    def compute_traj(self,Time):
+    def compute_traj(self,Time,velType):
        
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(velType)
                
         trajT = ml.repmat(Time,len(meshXci),1).T
         
@@ -607,8 +637,8 @@ class Impact:
         xi1 = b/(c1-a)
         xi2 = b/(c2-a)
         
-        # intersection if Ri1 or Ri2 is >0 and <Rcircle
-        inter = (meshVXci<0)&(((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle))) 
+        # intersection if Ri1 or Ri2 is >0 and <3*Rcircle
+        inter = (meshVXci<0)&(((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle*1.1)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle*1.1))) 
         
         
 
@@ -625,11 +655,11 @@ class Impact:
     
     # Sheet opening
     
-    def compute_SheetOpening(self):
+    def compute_SheetOpening(self,velType):
         
         if self.SheetOpen == []:
     
-            trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500))
+            trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500),velType)
             
             tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
             
@@ -655,9 +685,9 @@ class Impact:
                 self.wiXs = np.nan
                 self.wiYs = np.nan
                 
-    def SheetOpening(self):
+    def SheetOpening(self,velType):
         
-        self.compute_SheetOpening()
+        self.compute_SheetOpening(velType)
         
         return(self.SheetOpen,self.wiXs,self.wiYs)
     
@@ -879,7 +909,7 @@ class Impact:
         fig.tight_layout()
         
     
-    def plot_splash_traj(self,Time,**kwargs):
+    def plot_splash_traj(self,Time,velType,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -921,10 +951,10 @@ class Impact:
             
         
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
-                                 conecolor=ConeColor,title='JetFrac = ' + str(self.JetFrac) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                 conecolor=ConeColor,title='JetFrac = ' + str(self.compute_JetFrac(velType)) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
            
                     
-        trajX,trajY,trajT = self.compute_traj(Time)
+        trajX,trajY,trajT = self.compute_traj(Time,velType)
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
@@ -939,10 +969,15 @@ class Impact:
         
         ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits')
         
-        ax[1].set_box_aspect(1)
+        # ax[1].set_box_aspect(1)
+        
+        
+        ax[1].set_xlim(np.array([-10,7]))
+        ax[1].set_ylim(np.array([-7,7]))
+        
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time')
     
-    
+        return(fig)
     
     
     
