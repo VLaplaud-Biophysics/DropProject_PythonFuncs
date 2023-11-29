@@ -522,11 +522,14 @@ class Impact:
             meshVX_tan_div0 = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
             meshVY_tan_div0 = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
             
-            meshVXci_tan_div0,meshVYci_tan_div0 = self.Cone.Cone2Circle(meshX+meshVX_tan_div0*0.01, meshY+meshVY_tan_div0*0.01)
+            speedres = 1000
             
-            self.meshVXci_tan_div0 = (meshVXci_tan_div0-meshXci)*100
-            self.meshVYci_tan_div0 = (meshVYci_tan_div0-meshYci)*100
+            meshVXci_tan_div0,meshVYci_tan_div0 = self.Cone.Cone2Circle(meshX+meshVX_tan_div0/speedres, meshY+meshVY_tan_div0/speedres)
             
+            self.meshVXci_tan_div0 = (meshVXci_tan_div0-meshXci)*speedres
+            self.meshVYci_tan_div0 = (meshVYci_tan_div0-meshYci)*speedres
+            
+
             self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
             self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
             
@@ -747,12 +750,14 @@ class Impact:
         
         meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
         
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci/100+meshXci, meshVYci/100+meshYci)
+        speedres = 10000
+
+        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci/speedres+meshXci, meshVYci/speedres+meshYci)
         
-        meshVX = (meshVX - meshX)*100
-        meshVY = (meshVY - meshY)*100
+        meshVX = (meshVX - meshX)*speedres
+        meshVY = (meshVY - meshY)*speedres
         
-        fieldnorm = fieldnormCi*np.sin(self.Cone.Alpha)
+        fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY)) 
 
     
         

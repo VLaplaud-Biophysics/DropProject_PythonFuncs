@@ -111,21 +111,21 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
         print('Done !')
          
     else:
-        os.makedirs(savepath + '\JetFrac\FixedAngle') # create folder
-        os.makedirs(savepath + '\JetFrac\FixedDrop') # create folder
-        os.makedirs(savepath + '\JetFrac\FixedDist') # create folder
+        os.makedirs(savepath + '\JetFrac\FixedAngle',exist_ok=True) # create folder
+        os.makedirs(savepath + '\JetFrac\FixedDrop',exist_ok=True) # create folder
+        os.makedirs(savepath + '\JetFrac\FixedDist',exist_ok=True) # create folder
     
-        os.makedirs(savepath + '\VolRatio\FixedAngle') # create folder
-        os.makedirs(savepath + '\VolRatio\FixedDrop') # create folder
-        os.makedirs(savepath + '\VolRatio\FixedDist') # create folder
+        os.makedirs(savepath + '\VolRatio\FixedAngle',exist_ok=True) # create folder
+        os.makedirs(savepath + '\VolRatio\FixedDrop',exist_ok=True) # create folder
+        os.makedirs(savepath + '\VolRatio\FixedDist',exist_ok=True) # create folder
          
-        os.makedirs(savepath + '\JetNRJ\FixedAngle') # create folder
-        os.makedirs(savepath + '\JetNRJ\FixedDrop') # create folder
-        os.makedirs(savepath + '\JetNRJ\FixedDist') # create folder
+        os.makedirs(savepath + '\JetNRJ\FixedAngle',exist_ok=True) # create folder
+        os.makedirs(savepath + '\JetNRJ\FixedDrop',exist_ok=True) # create folder
+        os.makedirs(savepath + '\JetNRJ\FixedDist',exist_ok=True) # create folder
          
-        os.makedirs(savepath + '\SheetOpening\FixedAngle') # create folder
-        os.makedirs(savepath + '\SheetOpening\FixedDrop') # create folder
-        os.makedirs(savepath + '\SheetOpening\FixedDist') # create folder
+        os.makedirs(savepath + '\SheetOpening\FixedAngle',exist_ok=True) # create folder
+        os.makedirs(savepath + '\SheetOpening\FixedDrop',exist_ok=True) # create folder
+        os.makedirs(savepath + '\SheetOpening\FixedDist',exist_ok=True) # create folder
         
         
         cpt = 0
@@ -258,7 +258,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             
             # sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,cmap='jet',s=pointSize)
             
-            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 20,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -362,7 +362,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             # 
             # sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,cmap='jet',s=pointSize)
             
-            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,vmin=0, vmax = 20,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -464,7 +464,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             
             sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,cmap='jet',s=pointSize)
             
-            # sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,vmin=0, vmax = 70,cmap='jet',s=pointSize)
+            # sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,vmin=0, vmax = 20,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -493,16 +493,9 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
         
         for roc,ioc in zip(RelOffCents,range(len(RelOffCents))):
          
-            avgJetFracs[:,:,ioc] = JetFracs[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam)
-            avgJetNRJ[:,:,ioc] = JetNRJ[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam)
+            avgJetFracs[:,:,ioc] = JetFracs[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)/(np.pi*(np.max(RelOffCents)*ConeDiam/2)**2)
+            avgJetNRJ[:,:,ioc] = JetNRJ[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)/(np.pi*(np.max(RelOffCents)*ConeDiam/2)**2)
         
-        for rdd,idd in zip(RelDropDiams,range(len(RelDropDiams))):
-            
-            dropRadius = rdd*ConeDiam/2
-               
-            avgJetFracs[idd,:,:] = avgJetFracs[idd,:,:]/(np.pi*(dropRadius+ConeDiam/2)**2)
-            avgJetNRJ[idd,:,:] = avgJetNRJ[idd,:,:]/(np.pi*(dropRadius+ConeDiam/2)**2)
-            
         avgJetFracs = np.nansum(avgJetFracs,axis=2) 
         avgJetNRJ = np.nansum(avgJetNRJ,axis=2) 
         
