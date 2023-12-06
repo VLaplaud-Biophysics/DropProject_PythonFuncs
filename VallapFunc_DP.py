@@ -40,38 +40,45 @@ def interVolSC(Rs,Rc,Dsc):
     eta = Dsc/Rs
     
     """ Formula is valid if sphere and cylinder intersects """
-    if not (eta-rho) < 1:
-        raise ValueError('Invalid case ! This code''s formula is only valid for intersecting sphere and cylinders \n -> (Dsc/Rs) - (Rc/Rs) < 1 !!')
+    # if not (eta-rho) < 1:
+    #     raise ValueError('Invalid case ! This code''s formula is only valid for intersecting sphere and cylinders \n -> (Dsc/Rs) - (Rc/Rs) < 1 !!')
         
 
-    """ Heuman's lambda function """
-    def Lambda0(beta,m):      
-        """ From (https://link.springer.com/content/pdf/10.1007%2F978-3-642-65138-0.pdf) form 150.3 page 36 """
-        L = 2/np.pi*(mpm.ellipe(m)*mpm.ellipf(beta,(1-m))+mpm.ellipk(m)*mpm.ellipe(beta,(1-m))-mpm.ellipk(m)*mpm.ellipf(beta,(1-m)))
-        return(L)   
-    
-    
-    if (eta+rho)>1 :
-        """ Formula (5) is valid for eta+rho > 1 , this means that the part of the cylinder is outside the drop  """ 
+    if (eta-rho) < 1:
         
-        m = (1-(eta-rho)**2)/(4*rho*eta) # parameter for eliptic functions of mpmath (=k² in the paper)    
-        theta = np.arcsin(eta-rho)  
-        
-        V = (2/3*np.pi*(1-Lambda0(theta,m)) 
-             -8/9*np.sqrt(rho*eta)*(6*rho**2+2*rho*eta-3)*(1-m)*mpm.ellipk(m) 
-             +8/9*np.sqrt(rho*eta)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
+
     
+        """ Heuman's lambda function """
+        def Lambda0(beta,m):      
+            """ From (https://link.springer.com/content/pdf/10.1007%2F978-3-642-65138-0.pdf) form 150.3 page 36 """
+            L = 2/np.pi*(mpm.ellipe(m)*mpm.ellipf(beta,(1-m))+mpm.ellipk(m)*mpm.ellipe(beta,(1-m))-mpm.ellipk(m)*mpm.ellipf(beta,(1-m)))
+            return(L)   
+        
+        
+        if (eta+rho)>1 :
+            """ Formula (5) is valid for eta+rho > 1 , this means that the part of the cylinder is outside the drop  """ 
+            
+            m = (1-(eta-rho)**2)/(4*rho*eta) # parameter for eliptic functions of mpmath (=k² in the paper)    
+            theta = np.arcsin(eta-rho)  
+            
+            V = (2/3*np.pi*(1-Lambda0(theta,m)) 
+                 -8/9*np.sqrt(rho*eta)*(6*rho**2+2*rho*eta-3)*(1-m)*mpm.ellipk(m) 
+                 +8/9*np.sqrt(rho*eta)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
+        
+        else:
+            """ Formula (8) is valid for eta+rho <= 1 , this means that the cylinder is completely inside the drop  """ 
+            
+            m = (4*rho*eta)/(1-(eta-rho)**2) # parameter for eliptic functions of mpmath (=k² in the paper)    
+            theta = np.arcsin((eta-rho)/(eta+rho))  
+            
+            V = (2/3*np.pi*(1-Lambda0(theta,m))
+                 -(4*np.sqrt(1-(eta-rho)**2))/(9*(eta+rho))*(2*rho-4*eta+(eta+rho)*(eta-rho)**2)*(1-m)*mpm.ellipk(m)
+                 +4/9*np.sqrt(1-(eta-rho)**2)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
+    
+        V = np.real(V)
+        
     else:
-        """ Formula (8) is valid for eta+rho <= 1 , this means that the cylinder is completely inside the drop  """ 
-        
-        m = (4*rho*eta)/(1-(eta-rho)**2) # parameter for eliptic functions of mpmath (=k² in the paper)    
-        theta = np.arcsin((eta-rho)/(eta+rho))  
-        
-        V = (2/3*np.pi*(1-Lambda0(theta,m))
-             -(4*np.sqrt(1-(eta-rho)**2))/(9*(eta+rho))*(2*rho-4*eta+(eta+rho)*(eta-rho)**2)*(1-m)*mpm.ellipk(m)
-             +4/9*np.sqrt(1-(eta-rho)**2)*(7*rho**2+eta**2-4)*mpm.ellipe(m))
-
-    V = np.real(V)
+        V = 0
     
     return(float(V*Rs**3))
 

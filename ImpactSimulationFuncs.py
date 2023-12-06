@@ -98,7 +98,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
     
     nsim = meshDD.size
     
-    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label
+    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label + '_' + str(npts) + 'npts'
     
     if os.path.exists(savepath):
         
@@ -491,13 +491,24 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
         avgJetFracs = np.empty(np.shape(JetFracs))
         avgJetNRJ = np.empty(np.shape(JetNRJ))
         
+        JetFracs[np.isnan(JetFracs)] = 0
+        JetNRJ[np.isnan(JetNRJ)] = 0
+        
         for roc,ioc in zip(RelOffCents,range(len(RelOffCents))):
          
-            avgJetFracs[:,:,ioc] = JetFracs[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)/(np.pi*(np.max(RelOffCents)*ConeDiam/2)**2)
-            avgJetNRJ[:,:,ioc] = JetNRJ[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)/(np.pi*(np.max(RelOffCents)*ConeDiam/2)**2)
+            avgJetFracs[:,:,ioc] = JetFracs[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)
+            avgJetNRJ[:,:,ioc] = JetNRJ[:,:,ioc]*(2*np.pi*dr*roc*ConeDiam/2)
         
-        avgJetFracs = np.nansum(avgJetFracs,axis=2) 
-        avgJetNRJ = np.nansum(avgJetNRJ,axis=2) 
+        avgJetFracs = np.sum(avgJetFracs,axis=2)/np.sum(2*np.pi*dr*RelOffCents*ConeDiam/2)
+        avgJetNRJ = np.sum(avgJetNRJ,axis=2)/np.sum(2*np.pi*dr*RelOffCents*ConeDiam/2)
+        
+        
+        avgJetNRJ_Balistic = np.empty(np.shape(avgJetNRJ))
+        
+        for a,ia in zip(Angles,range(len(Angles))):
+         
+            avgJetNRJ_Balistic[:,ia] = avgJetNRJ[:,ia]*np.square(np.sin(a*2*np.pi/360)*np.cos(a*2*np.pi/360))
+        
         
         
         # Impact fraction in jet
@@ -533,6 +544,23 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
         f3.savefig(savepath + '\JetNRJ\OffCavgDgm_' + label + '_JetNRJ.png')
         
         plt.close(f3)
+        
+        # balistic kinetic energy in the jet
+        f4,ax4 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax4.set_title('Random rain average')
+        ax4.set_xlabel('DropSize/ConeSize')
+        ax4.set_ylabel('Cone angle [°]')
+        ax4.set_xlim([0,np.max(RelDropDiams)])
+        
+        sc4 = ax4.scatter(xDD,xA,c=avgJetNRJ_Balistic*1000,cmap='jet',s=pointSize)
+        
+        cbar4 = plt.colorbar(sc4)
+        cbar4.set_label('Maximum balistic kinetic energy in jets [mJ]')
+        f4.tight_layout()
+        
+        f4.savefig(savepath + '\JetNRJ\OffCavgDgm_' + label + '_JetNRJ_B.png')
+        
+        plt.close(f4)
         
             
          
@@ -593,4 +621,223 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
         # fig.tight_layout()
         
         return(fig0,fig1)
+
+
+
+###
+# 3. Cone optimization diagrams
+
+def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
+    
+    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label + '_' + str(npts) + '_' + str(ndrops)
+
+    coneAngles = np.linspace(ConeAngles[0],ConeAngles[1],npts)/360*2*np.pi
+
+    coneSizes = np.linspace(ConeDiams[0],ConeDiams[1],npts) # Radius in [mm]
+
+    meshCA,meshCS = np.meshgrid(coneAngles,coneSizes)
+    
+    if os.path.exists(savepath):
+        
+        print('Loading previous simulations results...', end = '')
+        
+        
+        impactVolumes = np.load(savepath + '\Data_impactVolumes.npy')
+        jetVolumes = np.load(savepath + '\Data_jetVolumes.npy')
+        jetNRJs = np.load(savepath + '\Data_jetNRJs.npy')
+        TotalVolume = np.load(savepath + '\Data_TotalVolume.npy')
+
+        print('Done !')
+         
+    else:
+        os.makedirs(savepath) # create folder
+
+        jetVolumes = np.empty(np.shape(meshCA))
+        impactVolumes = np.empty(np.shape(meshCA))
+        jetNRJs = np.empty(np.shape(meshCS))
+
+        # Drop distribution
+
+        rho = 1000 # in [kg/m^3]
+
+        dropSizes = np.random.exponential(size=ndrops,scale= 1) # Radius
+
+        dropSizes[dropSizes>5] = dropSizes[dropSizes>5]-5 # Max radius [mm]
+
+        dropVels = np.sqrt(8/3*1000/1.3*10*dropSizes/500) # in m/s or mm/ms
+
+        dropRs = np.sqrt(np.random.rand(ndrops)*(np.max(coneSizes)+np.max(dropSizes))**2)
+
+        dropAs = np.random.rand(ndrops)*2*np.pi
+        
+        TotalVolume = np.sum(4/3*np.pi*dropSizes**3)/1000 # in [cm3] 
+
+
+
+        # Drop and cones plot
+        fig,ax = plt.subplots(dpi=200)
+        dropXs,dropYs = vf.ToCart(dropAs,dropRs,angle='rad')
+        tx = np.linspace(0,2*np.pi,30)
+        for cr in coneSizes:
+            ax.plot(np.cos(tx)*cr,np.sin(tx)*cr,'g')
+        ax.plot(0,0,'go')
+        for x,y,r in zip(dropXs[0:50:],dropYs[0:50:],dropSizes[0:50:]):
+            ax.plot(x,y,'b.',ms=1)
+            ax.plot(x+r*np.cos(tx),y+r*np.sin(tx),'c-',lw=1)
+
+        ax.set_aspect('equal')
+        
+        fig.savefig(savepath + '\DropAndCone.png')
+
+        plt.close(fig)
+        
+        f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax.hist(dropSizes,density = True,bins=20,label='exponential corrected (max = 5)')
+        ax.title('PDF of drop radius')
+        ax.xlabel('Drop radius (mm)')
+        ax.legend()
+        
+        f.savefig(savepath + '\DropSizes.png')
+
+        plt.close(f)
+
+        f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax.plot(dropSizes,dropVels,'o')
+        ax.xlabel('Drop radius (mm)')
+        ax.ylabel('Drop speed (m/s)')
+        
+        f.savefig(savepath + '\DropSizeVsSpeed.png')
+
+        plt.close(f)
+
+        f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax.hist(dropVels)
+        ax.title('Drop speeds (m/s)')
+        ax.xlabel('Drop speed (m/s)')
+        
+        f.savefig(savepath + '\DropSpeeds.png')
+
+        plt.close(f)
+
+
+        ###### Simulations
+
+
+        for a,ia in zip(coneAngles,range(len(coneAngles))):
+            for cs,ics in zip(coneSizes,range(len(coneSizes))):
+
+                coneNum = ia*len(coneSizes) + ics + 1
+
+                jetVolume = np.empty(np.shape(dropSizes))
+                impactVolume = np.empty(np.shape(dropSizes))
+                jetNRJ = np.empty(np.shape(dropSizes))
+
+                for ds,dr,dv,di in zip(dropSizes,dropRs,dropVels,range(len(dropVels))):
+
+                    print("Computing impacts for cone " + str(coneNum) + "/" + str(len(coneSizes)*len(coneAngles)) + " : Impact n°"+str(di)+"/"+str(len(dropSizes))+".".ljust(10),end='\r')
+                    
+                    if dr<cs+ds:
+                        
+                        I = dgc.Cone(cs,a).impact(dgc.Drop(ds,dr,71,dv),oriType) 
+    
+                        impactVolume[di] = I.VolFrac/100*4/3*np.pi*(ds/1000)**3
+    
+                        jetVolume[di] = impactVolume[di]*I.compute_JetFrac('full_div0')/100
+    
+                        jetNRJ[di] = jetVolume[di]*rho*dv**2*np.sin(2*a)
+                        
+                    else:
+                        
+                        impactVolume[di] = 0
+    
+                        jetVolume[di] = 0
+    
+                        jetNRJ[di] = 0
+
+                    del I
+
+                impactVolumes[ics,ia] = np.sum(impactVolume) # in [m^3]
+
+                jetVolumes[ics,ia] = np.sum(jetVolume) # in [m^3]
+
+                jetNRJs[ics,ia] = np.sum(jetNRJ) # [balistic J]
+                
+                
+                
+        np.save(savepath + '\Data_impactVolumes.npy',impactVolumes)
+        np.save(savepath + '\Data_jetVolumes.npy',jetVolumes)
+        np.save(savepath + '\Data_jetNRJs.npy',jetNRJs)
+        np.save(savepath + '\Data_TotalVolume.npy',TotalVolume)
+
+    # ############# Optimization diagrams
+
+    pointSize = 250000/(npts**2) 
+
+     # Impact volume
+    f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax0.set_title('Impact volume for random rain of ' + str(ndrops) + ' drops')
+    ax0.set_xlabel('Cone angle (°)')
+    ax0.set_ylabel('Cone radius (mm)')
+
+    sc0 = ax0.scatter(meshCA/(2*np.pi)*360,meshCS,c=impactVolumes*1e6,vmin=0,vmax = TotalVolume,cmap='viridis',s=pointSize)
+
+    cbar0 = plt.colorbar(sc0)
+    cbar0.set_label('Total volume impacting the cone (cm3)')
+    f0.tight_layout()
+
+    f0.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_ImpactVolume.png')
+
+    plt.close(f0)
+
+     # Jet volume
+    f1,ax1 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax1.set_title('Jet volume for random rain of ' + str(ndrops) + ' drops')
+    ax1.set_xlabel('Cone angle (°)')
+    ax1.set_ylabel('Cone radius (mm)')
+
+    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetVolumes*1e6,vmin=0,vmax = TotalVolume,cmap='PuOr',s=pointSize)
+
+    cbar1 = plt.colorbar(sc1)
+    cbar1.set_label('Total volume ejected as jets (cm3)')
+    f1.tight_layout()
+
+    f1.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_JetVolume.png')
+
+    plt.close(f1)
+
+    # Jet/Impact volume
+    f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax2.set_title('Efficiency [jet/impact volumes] for random rain of ' + str(ndrops) + ' drops')
+    ax2.set_xlabel('Cone angle (°)')
+    ax2.set_ylabel('Cone radius (mm)')
+
+    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,meshCS,c=np.divide(jetVolumes,impactVolumes)*100,vmin=0,vmax = 100,cmap='jet',s=pointSize)
+
+    cbar2 = plt.colorbar(sc2)
+    cbar2.set_label('Efficiency [jet/impact volumes] (%)')
+    f2.tight_layout()
+
+    f2.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_Efficiency.png')
+
+    plt.close(f2)
+
+     # Balistic energy
+    f3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax3.set_title('Maximum balistic energy in jets\n for random rain of ' + str(ndrops) + ' drops')
+    ax3.set_xlabel('Cone angle (°)')
+    ax3.set_ylabel('Cone radius (mm)')
+
+    sc3 = ax3.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetNRJs,cmap='jet',s=pointSize)
+
+    cbar3 = plt.colorbar(sc3)
+    cbar3.set_label('Balistic energy of the jets (J)')
+    f3.tight_layout()
+
+    f3.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_BalisticEnergy.png')
+
+    plt.close(f3)
 
