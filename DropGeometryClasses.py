@@ -470,6 +470,13 @@ class Impact:
                 meshOXci = meshXci-meshXci[np.argmax(meshH[InCircle])]
                 meshOYci = meshYci-meshYci[np.argmax(meshH[InCircle])]
                 
+            elif self.oriType == 'Drop':
+                
+                Xdci,Ydci = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd)
+                
+                meshOXci = meshXci-Xdci
+                meshOYci = meshYci-Ydci
+                
             elif self.oriType == 'Central':
                 
                 meshOXci = meshXci-meshXci.mean()
@@ -651,6 +658,9 @@ class Impact:
         self.meshJFy = self.meshYci[inter] 
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
         
+        if np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone):
+            JetFrac = 0
+        
         return(JetFrac)
     
             
@@ -765,13 +775,13 @@ class Impact:
                                  conecolor=ConeColor,title= Title + '_' + VelType,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
         self.compute_JetFrac(VelType)
-        ax[0].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
+        # ax[0].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
         
         q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=5,headlength=18,headaxislength=16)
-        q1 = ax[1].quiver(meshX, meshY, np.divide(meshVX,fieldnorm), np.divide(meshVY,fieldnorm),fieldnorm,scale = 15,zorder=20,headlength=18,headaxislength=16,cmap = 'jet')
+        q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=20,headlength=18,headaxislength=16)
 
-        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity')
-        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity')
+        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity',ticks=np.linspace(0,self.Drop.Vel,6))
+        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity',ticks=np.linspace(0,self.Drop.Vel,6))
     
     def plot_div(self,**kwargs):
         
