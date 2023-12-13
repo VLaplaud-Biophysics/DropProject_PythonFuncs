@@ -424,3 +424,31 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
         cmap(np.linspace(minval, maxval, n)))
     return new_cmap
+
+
+# Compute deformed drop outline
+
+def CircleDropLine(Rd,r,Alpha):
+    
+    if Rd >= r:
+        
+        Theta = np.linspace(-np.pi,np.pi,2000)
+        
+        R = (r*np.cos(Theta/np.sin(Alpha)) + np.sqrt(Rd**2 - (r*np.sin(Theta/np.sin(Alpha)))**2))/np.sin(Alpha)
+        
+        X,Y = ToCart(Theta,R)
+        
+    else:
+    
+        Theta = np.linspace(-np.sin(Alpha)*np.arcsin(Rd/r),np.sin(Alpha)*np.arcsin(Rd/r),1000)
+    
+    
+        R1 = (r*np.cos(Theta/np.sin(Alpha)) - np.sqrt(Rd**2 - (r*np.sin(Theta/np.sin(Alpha)))**2))/np.sin(Alpha)
+        R2 = (r*np.cos(Theta/np.sin(Alpha)) + np.sqrt(Rd**2 - (r*np.sin(Theta/np.sin(Alpha)))**2))/np.sin(Alpha)
+        
+        X1,Y1 = ToCart(Theta,R1)
+        X2,Y2 = ToCart(Theta,R2)
+        
+        X,Y = ToCart(np.concatenate((Theta,Theta)),np.concatenate((R1,R2)))
+
+    return(X,Y)
