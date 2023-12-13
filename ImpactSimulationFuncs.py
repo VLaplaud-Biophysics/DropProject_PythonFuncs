@@ -627,13 +627,26 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
 ###
 # 3. Cone optimization diagrams
 
-def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
+def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,label):
     
     savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label + '_' + str(npts) + '_' + str(ndrops)
 
     coneAngles = np.linspace(ConeAngles[0],ConeAngles[1],npts)/360*2*np.pi
 
-    coneSizes = np.linspace(ConeDiams[0],ConeDiams[1],npts) # Radius in [mm]
+    coneSizes = np.linspace(ConeSizes[0],ConeSizes[1],npts)
+    
+    if sizeType == 'area':
+        
+        coneLabel = 'Cone surface area (mm²)'
+        
+    elif sizeType == 'side':
+        
+        coneLabel = 'Cone side length (mm)'
+            
+    elif sizeType == 'diameter':
+        
+        coneLabel = 'Cone diameter (mm)'
+        
 
     meshCA,meshCS = np.meshgrid(coneAngles,coneSizes)
     
@@ -660,26 +673,42 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
 
         rho = 1000 # in [kg/m^3]
 
-        dropSizes = np.random.exponential(size=ndrops,scale= 1) # Radius
+        if dropDist == 'exp':
+            
+            dropSizes = np.random.exponential(size=ndrops,scale= 1) # 
+            
+        
+        if dropDist == 'gamma':
+            
+            dropSizes = np.random.gamma(3,0.5, ndrops)
 
         dropSizes[dropSizes>5] = dropSizes[dropSizes>5]-5 # Max radius [mm]
 
         dropVels = np.sqrt(8/3*1000/1.3*10*dropSizes/500) # in m/s or mm/ms
 
-        dropRs = np.sqrt(np.random.rand(ndrops)*(np.max(coneSizes)+np.max(dropSizes))**2)
+        if sizeType == 'area':
+            
+            dropRs = np.sqrt(np.random.rand(ndrops)*(np.sqrt(np.max(coneSizes)/np.pi*np.sin(np.max(coneAngles)))+np.max(dropSizes))**2)
+            
+        elif sizeType == 'side':
+            
+            dropRs = np.sqrt(np.random.rand(ndrops)*(np.max(coneSizes)*np.sin(np.max(coneAngles))+np.max(dropSizes))**2)
+                
+        elif sizeType == 'diameter':
+
+            dropRs = np.sqrt(np.random.rand(ndrops)*(np.max(coneSizes)+np.max(dropSizes))**2)
+        
 
         dropAs = np.random.rand(ndrops)*2*np.pi
         
         TotalVolume = np.sum(4/3*np.pi*dropSizes**3)/1000 # in [cm3] 
-
-
 
         # Drop and cones plot
         fig,ax = plt.subplots(dpi=200)
         dropXs,dropYs = vf.ToCart(dropAs,dropRs,angle='rad')
         tx = np.linspace(0,2*np.pi,30)
         for cr in coneSizes:
-            ax.plot(np.cos(tx)*cr,np.sin(tx)*cr,'g')
+            ax.plot(np.cos(tx)*cr*np.tan(np.pi/2),np.sin(tx)*cr*np.tan(np.pi/2),'g')
         ax.plot(0,0,'go')
         for x,y,r in zip(dropXs[0:50:],dropYs[0:50:],dropSizes[0:50:]):
             ax.plot(x,y,'b.',ms=1)
@@ -693,8 +722,8 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
         
         f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
         ax.hist(dropSizes,density = True,bins=20,label='exponential corrected (max = 5)')
-        ax.title('PDF of drop radius')
-        ax.xlabel('Drop radius (mm)')
+        ax.set_title('PDF of drop radius')
+        ax.set_xlabel('Drop radius (mm)')
         ax.legend()
         
         f.savefig(savepath + '\DropSizes.png')
@@ -703,8 +732,8 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
 
         f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
         ax.plot(dropSizes,dropVels,'o')
-        ax.xlabel('Drop radius (mm)')
-        ax.ylabel('Drop speed (m/s)')
+        ax.set_xlabel('Drop radius (mm)')
+        ax.set_ylabel('Drop speed (m/s)')
         
         f.savefig(savepath + '\DropSizeVsSpeed.png')
 
@@ -712,8 +741,8 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
 
         f,ax = plt.subplots(dpi=150,figsize = (7,6)) 
         ax.hist(dropVels)
-        ax.title('Drop speeds (m/s)')
-        ax.xlabel('Drop speed (m/s)')
+        ax.set_title('Drop speeds (m/s)')
+        ax.set_xlabel('Drop speed (m/s)')
         
         f.savefig(savepath + '\DropSpeeds.png')
 
@@ -731,20 +760,38 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
                 jetVolume = np.empty(np.shape(dropSizes))
                 impactVolume = np.empty(np.shape(dropSizes))
                 jetNRJ = np.empty(np.shape(dropSizes))
+                
+                if sizeType == 'area':
+                    
+                    cr = np.sqrt(cs/np.pi*np.sin(a)) # cone Radius
+                    
+                elif sizeType == 'side':
+                    
+                    cr = cs*np.sin(a)
+                        
+                elif sizeType == 'diameter':
+                    
+                    cr = cs/2
+                
+
 
                 for ds,dr,dv,di in zip(dropSizes,dropRs,dropVels,range(len(dropVels))):
 
                     print("Computing impacts for cone " + str(coneNum) + "/" + str(len(coneSizes)*len(coneAngles)) + " : Impact n°"+str(di)+"/"+str(len(dropSizes))+".".ljust(10),end='\r')
                     
-                    if dr<cs+ds:
+
+                    
+                    if dr<(cr+ds)*0.95:
                         
-                        I = dgc.Cone(cs,a).impact(dgc.Drop(ds,dr,71,dv),oriType) 
+                        I = dgc.Cone(cr,a).impact(dgc.Drop(ds,dr,71,dv),oriType) 
     
                         impactVolume[di] = I.VolFrac/100*4/3*np.pi*(ds/1000)**3
     
                         jetVolume[di] = impactVolume[di]*I.compute_JetFrac('full_div0')/100
     
                         jetNRJ[di] = jetVolume[di]*rho*dv**2*np.sin(2*a)
+                        
+                        del I
                         
                     else:
                         
@@ -754,7 +801,7 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
     
                         jetNRJ[di] = 0
 
-                    del I
+                    
 
                 impactVolumes[ics,ia] = np.sum(impactVolume) # in [m^3]
 
@@ -777,12 +824,12 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
     f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax0.set_title('Impact volume for random rain of ' + str(ndrops) + ' drops')
     ax0.set_xlabel('Cone angle (°)')
-    ax0.set_ylabel('Cone radius (mm)')
+    ax0.set_ylabel(coneLabel)
 
-    sc0 = ax0.scatter(meshCA/(2*np.pi)*360,meshCS,c=impactVolumes*1e6,vmin=0,vmax = TotalVolume,cmap='viridis',s=pointSize)
+    sc0 = ax0.scatter(meshCA/(2*np.pi)*360,meshCS,c=impactVolumes*1e6/TotalVolume*100,vmin=0,cmap='viridis',s=pointSize)
 
     cbar0 = plt.colorbar(sc0)
-    cbar0.set_label('Total volume impacting the cone (cm3)')
+    cbar0.set_label('Total volume impacting the cone (% of total rain volume)')
     f0.tight_layout()
 
     f0.savefig(savepath + '\OptiDgm_'
@@ -794,12 +841,12 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
     f1,ax1 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax1.set_title('Jet volume for random rain of ' + str(ndrops) + ' drops')
     ax1.set_xlabel('Cone angle (°)')
-    ax1.set_ylabel('Cone radius (mm)')
+    ax1.set_ylabel(coneLabel)
 
-    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetVolumes*1e6,vmin=0,vmax = TotalVolume,cmap='PuOr',s=pointSize)
+    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetVolumes*1e6/TotalVolume*100,vmin=0,cmap='PuOr',s=pointSize)
 
     cbar1 = plt.colorbar(sc1)
-    cbar1.set_label('Total volume ejected as jets (cm3)')
+    cbar1.set_label('Total volume ejected as jets (% of total rain volume)')
     f1.tight_layout()
 
     f1.savefig(savepath + '\OptiDgm_'
@@ -811,7 +858,7 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
     f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax2.set_title('Efficiency [jet/impact volumes] for random rain of ' + str(ndrops) + ' drops')
     ax2.set_xlabel('Cone angle (°)')
-    ax2.set_ylabel('Cone radius (mm)')
+    ax2.set_ylabel(coneLabel)
 
     sc2 = ax2.scatter(meshCA/(2*np.pi)*360,meshCS,c=np.divide(jetVolumes,impactVolumes)*100,vmin=0,vmax = 100,cmap='jet',s=pointSize)
 
@@ -828,7 +875,7 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
     f3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax3.set_title('Maximum balistic energy in jets\n for random rain of ' + str(ndrops) + ' drops')
     ax3.set_xlabel('Cone angle (°)')
-    ax3.set_ylabel('Cone radius (mm)')
+    ax3.set_ylabel(coneLabel)
 
     sc3 = ax3.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetNRJs,cmap='jet',s=pointSize)
 
@@ -840,4 +887,7 @@ def OptiDiagrams(ConeDiams,ConeAngles,oriType,npts,ndrops,label):
                 + label + '_'+str(int(npts))+'npts_BalisticEnergy.png')
 
     plt.close(f3)
+    
+    
+    print('Figures ploted and saved !')
 
