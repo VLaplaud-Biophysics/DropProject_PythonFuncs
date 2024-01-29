@@ -629,7 +629,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
 
 def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,label):
     
-    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures/' + label + '_' + str(npts) + '_' + str(ndrops)
+    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\Optimization/' + label + '_' + str(npts) + '_' + str(ndrops)
 
     coneAngles = np.linspace(ConeAngles[0],ConeAngles[1],npts)/360*2*np.pi
 
@@ -657,7 +657,9 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
         
         impactVolumes = np.load(savepath + '\Data_impactVolumes.npy')
         jetVolumes = np.load(savepath + '\Data_jetVolumes.npy')
+        efficiency = np.load(savepath + '\Data_efficiency.npy')
         jetNRJs = np.load(savepath + '\Data_jetNRJs.npy')
+        jetNRJsBalis = np.load(savepath + '\Data_jetNRJsBalis.npy')
         TotalVolume = np.load(savepath + '\Data_TotalVolume.npy')
 
         print('Done !')
@@ -667,7 +669,9 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
 
         jetVolumes = np.empty(np.shape(meshCA))
         impactVolumes = np.empty(np.shape(meshCA))
+        efficiency = np.empty(np.shape(meshCA))
         jetNRJs = np.empty(np.shape(meshCS))
+        jetNRJsBalis = np.empty(np.shape(meshCS))
 
         # Drop distribution
 
@@ -789,7 +793,8 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
     
                         jetVolume[di] = impactVolume[di]*I.compute_JetFrac('full_div0')/100
     
-                        jetNRJ[di] = jetVolume[di]*rho*dv**2*np.sin(2*a)
+                        jetNRJ[di] = jetVolume[di]*rho*dv**2
+                        
                         
                         del I
                         
@@ -807,12 +812,17 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
 
                 jetVolumes[ics,ia] = np.sum(jetVolume) # in [m^3]
 
-                jetNRJs[ics,ia] = np.sum(jetNRJ) # [balistic J]
+                efficiency[ics,ia] = np.sum(jetVolume)/np.sum(impactVolume)*100 # in %
+
+                jetNRJs[ics,ia] = np.sum(jetNRJ) # [J]
+                
+                jetNRJsBalis[ics,ia] = np.sum(jetNRJ)*np.sin(2*a) # [balistic J]
                 
                 
                 
         np.save(savepath + '\Data_impactVolumes.npy',impactVolumes)
         np.save(savepath + '\Data_jetVolumes.npy',jetVolumes)
+        np.save(savepath + '\Data_efficiency.npy',efficiency)
         np.save(savepath + '\Data_jetNRJs.npy',jetNRJs)
         np.save(savepath + '\Data_TotalVolume.npy',TotalVolume)
 
@@ -860,7 +870,8 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
     ax2.set_xlabel('Cone angle (°)')
     ax2.set_ylabel(coneLabel)
 
-    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,meshCS,c=np.divide(jetVolumes,impactVolumes)*100,vmin=0,vmax = 100,cmap='jet',s=pointSize)
+    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,meshCS,c=efficiency,vmin=0,vmax = 100,cmap='jet',s=pointSize)
+        
 
     cbar2 = plt.colorbar(sc2)
     cbar2.set_label('Efficiency [jet/impact volumes] (%)')
@@ -889,5 +900,23 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
     plt.close(f3)
     
     
-    print('Figures ploted and saved !')
+     # Balistic energy
+    f3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax3.set_title('Maximum balistic energy in jets\n for random rain of ' + str(ndrops) + ' drops')
+    ax3.set_xlabel('Cone angle (°)')
+    ax3.set_ylabel(coneLabel)
+
+    sc3 = ax3.scatter(meshCA/(2*np.pi)*360,meshCS,c=jetNRJsBalis,cmap='jet',s=pointSize)
+
+    cbar3 = plt.colorbar(sc3)
+    cbar3.set_label('Balistic energy of the jets (J)')
+    f3.tight_layout()
+
+    f3.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_BalisticEnergy.png')
+
+    plt.close(f3)
+    
+    
+    print('\n\nFigures ploted and saved !')
 

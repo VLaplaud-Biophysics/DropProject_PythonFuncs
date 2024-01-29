@@ -64,6 +64,34 @@ def Circle2Cone(X,Y,Alpha,Ad):
     
     return(Xnew,Ynew)
 
+
+def VelCone2Circle(VX,VY,X,Y,Alpha):
+    # (VX,VY) velocities to transform, X,Y origin of the velovcity vector, Alpha angle of the cone
+    Theta,R = vf.ToCirc(X,Y,angle = 'rad')
+    a = (np.cos(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.sin(Theta)*np.sin(Theta*np.sin(Alpha))
+    b = (np.sin(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))- np.cos(Theta)*np.sin(Theta*np.sin(Alpha))
+    c = (np.cos(Theta)*np.sin(Theta*np.sin(Alpha))/np.sin(Alpha))- np.sin(Theta)*np.cos(Theta*np.sin(Alpha))
+    d = (np.sin(Theta)*np.sin(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.cos(Theta)*np.cos(Theta*np.sin(Alpha))
+    
+    VXnew = VX*a + VY*b
+    VYnew = VX*c + VY*d
+
+    return(VXnew,VYnew)
+
+
+def VelCircle2Cone(VX,VY,X,Y,Alpha):
+    # (VX,VY) velocities to transform, X,Y origin of the velovcity vector, Alpha angle of the cone
+    Theta,R = vf.ToCirc(X,Y,angle = 'rad')
+    a = (np.cos(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.sin(Theta)*np.sin(Theta*np.sin(Alpha))
+    b = (np.sin(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))- np.cos(Theta)*np.sin(Theta*np.sin(Alpha))
+    c = (np.cos(Theta)*np.sin(Theta*np.sin(Alpha))/np.sin(Alpha))- np.sin(Theta)*np.cos(Theta*np.sin(Alpha))
+    d = (np.sin(Theta)*np.sin(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.cos(Theta)*np.cos(Theta*np.sin(Alpha))
+    
+    VXnew = (d*VX - b*VY)/(a*d-b*c)
+    VYnew = (c*VX - a*VY)/(b*c-a*d)
+
+    return(VXnew,VYnew)
+
 ####
 # 3. Compute the height of a column at (X,Y) in a sphere of radius R centered on (Xs,0,0)
 def SphereH(R,X,Y,Xs):

@@ -443,6 +443,12 @@ class Impact:
         if self.ori == []:
             
             meshX,meshY,meshH = self.Drop.mesh() # Cone config
+            
+            InCone = np.sqrt(np.square(meshX) + np.square(meshY))<self.Cone.Rcone
+            
+            self.meshX = meshX[InCone]
+            self.meshY = meshY[InCone]
+            
             meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY) 
             
             
@@ -529,12 +535,15 @@ class Impact:
             meshVX_tan_div0 = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
             meshVY_tan_div0 = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
             
-            speedres = 1000
             
-            meshVXci_tan_div0,meshVYci_tan_div0 = self.Cone.Cone2Circle(meshX+meshVX_tan_div0/speedres, meshY+meshVY_tan_div0/speedres)
+            self.meshVXci_tan_div0,self.meshVYci_tan_div0 = dgf.VelCone2Circle(meshVX_tan_div0,meshVY_tan_div0, meshX, meshY, self.Cone.Alpha)
             
-            self.meshVXci_tan_div0 = (meshVXci_tan_div0-meshXci)*speedres
-            self.meshVYci_tan_div0 = (meshVYci_tan_div0-meshYci)*speedres
+            # speedres = 1000
+            
+            # meshVXci_tan_div0,meshVYci_tan_div0 = self.Cone.Cone2Circle(meshX+meshVX_tan_div0/speedres, meshY+meshVY_tan_div0/speedres)
+            
+            # self.meshVXci_tan_div0 = (meshVXci_tan_div0-meshXci)*speedres
+            # self.meshVYci_tan_div0 = (meshVYci_tan_div0-meshYci)*speedres
             
 
             self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
@@ -641,21 +650,30 @@ class Impact:
         
         # equation for the line along the trajectory (y = a*x + b)
         a = np.divide(meshVYci,meshVXci)
-        b = np.divide(((meshVXci+meshXci)*meshYci - (meshVYci+meshYci)*meshXci),meshVXci)
+        b = np.divide((meshVXci*meshYci - meshVYci*meshXci),meshVXci)
         
         # intersection points x coord
         xi1 = b/(c1-a)
         xi2 = b/(c2-a)
         
-        # intersection if Ri1 or Ri2 is >0 and <3*Rcircle
-        inter = (meshVXci<0)&(((xi1/np.cos(np.pi-self.Cone.Beta/2)>=0) & (xi1/np.cos(np.pi-self.Cone.Beta/2)<self.Cone.Rcircle*1.1)) | ((xi2/np.cos(-np.pi+self.Cone.Beta/2)>=0) & (xi2/np.cos(-np.pi+self.Cone.Beta/2)<self.Cone.Rcircle*1.1))) 
-        
+        yi1 = c1*xi1
+        yi2 = c2*xi2
         
 
-        Theta,R = vf.ToCirc(self.Drop.meshX,self.Drop.meshY)
+        print(self.Cone.Alpha)
         
-        self.meshJFx = self.meshXci[inter]
-        self.meshJFy = self.meshYci[inter] 
+        # intersection 
+        if self.Cone.Alpha>np.pi/6:
+            inter =  (((xi1<=0)&(xi1>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2<=0)&(xi2>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
+        elif  self.Cone.Alpha<np.pi/6: 
+            inter =  (((xi1>=0)&(xi1<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2>=0)&(xi2<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
+        else:
+            inter = (np.abs(yi1)<self.Cone.Rcircle)|(np.abs(yi2)<self.Cone.Rcircle)
+        
+        self.meshJFxci = self.meshXci[inter]
+        self.meshJFyci = self.meshYci[inter] 
+        self.meshJFx = self.meshX[inter]
+        self.meshJFy = self.meshY[inter] 
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
         
         if np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone):
@@ -756,18 +774,23 @@ class Impact:
        
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
 
-        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))        
+        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))  
+        # fieldnormCi = 4
         
         meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
         
-        speedres = 10000
+        # speedres = 10000
 
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci/speedres+meshXci, meshVYci/speedres+meshYci)
+        # meshVX, meshVY = self.Cone.Circle2Cone(meshVXci/speedres+meshXci, meshVYci/speedres+meshYci)
         
-        meshVX = (meshVX - meshX)*speedres
-        meshVY = (meshVY - meshY)*speedres
+        # meshVX = (meshVX - meshX)*speedres
+        # meshVY = (meshVY - meshY)*speedres
         
-        fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY)) 
+        
+        meshVX,meshVY = dgf.VelCircle2Cone(meshVXci,meshVYci, meshX, meshY, self.Cone.Alpha)
+        
+        fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY))     
+        # fieldnorm = 4
 
     
         
@@ -775,7 +798,8 @@ class Impact:
                                  conecolor=ConeColor,title= Title + '_' + VelType,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
         self.compute_JetFrac(VelType)
-        # ax[0].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
+        ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
+        ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
         
         q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=5,headlength=18,headaxislength=16)
         q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=20,headlength=18,headaxislength=16)
@@ -790,6 +814,8 @@ class Impact:
         
         ConeColor = 'g'
         ConeLW = 1
+        
+        
         
         for key, value in kwargs.items(): 
             if key == 'title':
