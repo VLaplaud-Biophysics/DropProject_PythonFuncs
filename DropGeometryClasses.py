@@ -352,9 +352,9 @@ class Drop:
             Ys = np.linspace(Ymin, Ymax, 200)
             
             Xs = np.insert(Xs,0,Xmin*0.9)
-            Xs = np.append(Xs,Xmin*1.1)
+            Xs = np.append(Xs,Xmax*1.1)
             Ys = np.insert(Ys,0,Ymin*0.9)
-            Ys = np.append(Ys,Ymin*1.1)
+            Ys = np.append(Ys,Ymax*1.1)
             
             Xgrid,Ygrid = np.meshgrid(Xs,Ys)
             
@@ -448,33 +448,26 @@ class Impact:
             
             self.meshX = meshX[InCone]
             self.meshY = meshY[InCone]
+            self.meshH = meshH[InCone]
             
-            meshXci,meshYci = self.Cone.Cone2Circle(meshX, meshY) 
+            meshXci,meshYci = self.Cone.Cone2Circle(self.meshX, self.meshY) 
             
-            
-            InCircle = np.sqrt(np.square(meshXci) + np.square(meshYci))<self.Cone.Rcircle
-            
-            
-            meshXci = meshXci[InCircle]
-            meshYci = meshYci[InCircle]
             
             if self.oriType == 'Hgrad':
             
                 HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
                 
-                meshOX = -HgradInterp_x(meshX,meshY) 
-                meshOY = -HgradInterp_y(meshX,meshY) 
+                meshOX = -HgradInterp_x(self.meshX,self.meshY) 
+                meshOY = -HgradInterp_y(self.meshX,self.meshY) 
                 
                 # to circle config
-                meshOXci,meshOYci = self.Cone.Cone2Circle(meshOX+meshX, meshOY+meshY) # Circle config, impacting fraction
-        
-                meshOXci = meshOXci[InCircle] - meshXci
-                meshOYci = meshOYci[InCircle] - meshYci
+                meshOXci,meshOYci = dgf.VelCone2Circle(meshOX, meshOY,self.meshX,self.meshY, self.Cone.Alpha) # Circle config, impacting fraction
+
                 
             elif self.oriType == 'Hmax':
                 
-                meshOXci = meshXci-meshXci[np.argmax(meshH[InCircle])]
-                meshOYci = meshYci-meshYci[np.argmax(meshH[InCircle])]
+                meshOXci = meshXci-meshXci[np.argmax(self.meshH)]
+                meshOYci = meshYci-meshYci[np.argmax(self.meshH)]
                 
             elif self.oriType == 'Drop':
                 
@@ -560,21 +553,31 @@ class Impact:
         
         if veltype == 'norm':
             
+            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_norm,self.meshVYci_norm, self.meshX, self.meshY, self.Cone.Alpha)
+            
             return(self.meshXci,self.meshYci,self.meshVXci_norm,self.meshVYci_norm)
         
         elif veltype == 'tan':
+            
+            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_tan,self.meshVYci_tan, self.meshX, self.meshY, self.Cone.Alpha)
             
             return(self.meshXci,self.meshYci,self.meshVXci_tan,self.meshVYci_tan)
         
         elif veltype == 'tan_div0':
             
+            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_tan_div0,self.meshVYci_tan_div0, self.meshX, self.meshY, self.Cone.Alpha)
+            
             return(self.meshXci,self.meshYci,self.meshVXci_tan_div0,self.meshVYci_tan_div0)
         
-        elif veltype == 'full':            
+        elif veltype == 'full':   
+            
+            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci,self.meshVYci, self.meshX, self.meshY, self.Cone.Alpha)         
             
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
         
-        elif veltype == 'full_div0':            
+        elif veltype == 'full_div0': 
+            
+            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_div0,self.meshVYci_div0, self.meshX, self.meshY, self.Cone.Alpha)           
             
             return(self.meshXci,self.meshYci,self.meshVXci_div0,self.meshVYci_div0)
         
