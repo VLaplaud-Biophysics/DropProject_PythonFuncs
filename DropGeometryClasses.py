@@ -659,21 +659,25 @@ class Impact:
         yi1 = c1*xi1
         yi2 = c2*xi2
         
-
-        print(self.Cone.Alpha)
         
         # intersection 
+        
         if self.Cone.Alpha>np.pi/6:
-            inter =  (((xi1<=0)&(xi1>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2<=0)&(xi2>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
+            inter = (meshVXci <=0)&(((xi1<=0)&(xi1>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2<=0)&(xi2>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
         elif  self.Cone.Alpha<np.pi/6: 
-            inter =  (((xi1>=0)&(xi1<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2>=0)&(xi2<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
+            inter =  ((np.divide(meshVXci,xi1-meshXci)>=0)|(np.divide(meshVXci,xi2-meshXci)>=0))&(((xi1>=0)&(xi1<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2>=0)&(xi2<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
         else:
-            inter = (np.abs(yi1)<self.Cone.Rcircle)|(np.abs(yi2)<self.Cone.Rcircle)
+            inter = (meshVXci <=0)&((np.abs(yi1)<self.Cone.Rcircle)|(np.abs(yi2)<self.Cone.Rcircle))
+        
+        
         
         self.meshJFxci = self.meshXci[inter]
         self.meshJFyci = self.meshYci[inter] 
         self.meshJFx = self.meshX[inter]
-        self.meshJFy = self.meshY[inter] 
+        self.meshJFy = self.meshY[inter]
+        self.meshJFVx = self.meshVX[inter]
+        self.meshJFVy = self.meshVY[inter]
+        self.meshJH = self.meshH[inter] 
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
         
         if np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone):
@@ -722,7 +726,17 @@ class Impact:
         
         return(self.SheetOpen,self.wiXs,self.wiYs)
     
-                    
+    def compute_JetNRJ(self,velType):
+        
+        rho = 997e-9 # [kg/mm3]
+        
+        Veq2 = np.sum(np.multiply(self.meshJH,np.sqrt(np.square(self.meshJFVx)+np.square(self.meshJFVy))))/np.sum(self.meshJH)
+        
+        # print(np.sqrt(Veq2))
+        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*self.VolFrac/100*self.compute_JetFrac(velType)/100*Veq2
+        
+        return(self.JetNRJ)
+    
     ###############################################################################
     #                                                                             #
     #                          Display methods                                    #
