@@ -683,7 +683,7 @@ class Impact:
         self.meshJH = self.meshH[inter] 
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
         
-        if np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone):
+        if (np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone)) | ((self.Drop.Rdrop-np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd)))>(self.Cone.Rcone)):
             JetFrac = 0
         
         return(JetFrac)
