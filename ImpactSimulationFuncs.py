@@ -192,8 +192,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
           
          
                  
-      
-        print(JetNRJratio)    
+         
         np.save(savepath + '\Data_JetFracs_' + str(npts) + 'npts.npy',JetFracs)
         np.save(savepath + '\Data_SheetWide_' + str(npts) + 'npts.npy',SheetWide)
         np.save(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy',JetNRJ)
@@ -290,7 +289,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             
             # sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,cmap='jet',s=pointSize)
             
-            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, vmax = 30,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJ[:,ia,:]*1000,vmin=0, cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -306,10 +305,10 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax3.set_xlabel('Offcent/ConeRadius')
             ax3.set_ylabel('DropSize/ConeSize')
 
-            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJratio[:,ia,:]*1000,vmin=0,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[:,ia,:]*2/ConeDiam,meshDD[:,ia,:]/ConeDiam,c=JetNRJratio[:,ia,:]*100,vmin=0,vmax = 80,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
-            cbar3.set_label('Kinetic energy ratio jet/impact fraction')
+            cbar3.set_label('Kinetic energy ratio jet/impact fraction [%]')
             f3.tight_layout()
             
             f3.savefig(savepath + '\JetNRJratio\FixedAngle\FxdADgm_'
@@ -429,10 +428,10 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             # 
             # sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJ[idd,:,:]*1000,cmap='jet',s=pointSize)
             
-            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJratio[idd,:,:]*1000,vmin=0,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshOC[idd,:,:]*2/ConeDiam,meshA[idd,:,:]/(2*np.pi)*360,c=JetNRJratio[idd,:,:]*100,vmin=0,vmax = 80,cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
-            cbar3.set_label('Kinetic energy ratio jet/impact fraction')
+            cbar3.set_label('Kinetic energy ratio jet/impact fraction [%]')
             f3.tight_layout()
             
             f3.savefig(savepath + '\JetNRJratio\FixedDrop\FxdDrDgm_'
@@ -531,7 +530,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             
             sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,cmap='jet',s=pointSize)
             
-            # sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,vmin=0, vmax = 30,cmap='jet',s=pointSize)
+            # sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJ[:,:,ioc]*1000,vmin=0, cmap='jet',s=pointSize)
             
             cbar3 = plt.colorbar(sc3)
             cbar3.set_label('Maximum kinetic energy in jet [mJ]')
@@ -548,11 +547,11 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
             ax3.set_ylabel('Cone angle [°]')
             ax3.set_xlim([0,np.max(RelDropDiams)])
             
-            sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJratio[:,:,ioc]*1000,vmin = 0,cmap='jet',s=pointSize)
+            sc3 = ax3.scatter(meshDD[:,:,ioc]/ConeDiam,meshA[:,:,ioc]/(2*np.pi)*360,c=JetNRJratio[:,:,ioc]*100,vmin = 0,vmax = 80,cmap='jet',s=pointSize)
             
 
             cbar3 = plt.colorbar(sc3)
-            cbar3.set_label('Kinetic energy ratio jet/impact fraction')
+            cbar3.set_label('Kinetic energy ratio jet/impact fraction [%]')
             f3.tight_layout()
             
             f3.savefig(savepath + '\JetNRJratio\FixedDist\FxdDiDgm_'
@@ -756,6 +755,7 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
         jetVolumes = np.empty(np.shape(meshCA))
         impactVolumes = np.empty(np.shape(meshCA))
         efficiency = np.empty(np.shape(meshCA))
+        NRJefficiency = np.empty(np.shape(meshCA))
         jetNRJs = np.empty(np.shape(meshCS))
         jetNRJsBalis = np.empty(np.shape(meshCS))
 
