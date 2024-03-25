@@ -22,7 +22,7 @@ from IPython import get_ipython
 
 ###
 # 1. Plotting function for different volume fractions
-def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velType):
+def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velType,velIni,meshType):
     
     DropSpeed = 5 # [mm/ms] 
 
@@ -63,7 +63,7 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velType):
 
         OffCents = np.linspace(0.1,OffCmax,npts)
         Drops = [dgc.Drop(DropDiam/2,x,71,DropSpeed) for x in OffCents]
-        Impacts = [Cone.impact(D,oriType) for D in Drops]
+        Impacts = [Cone.impact(D,oriType,velIni,meshType) for D in Drops]
         JetFracs = [I.compute_JetFrac(velType) for I in Impacts]
         DropFracs = [I.compute_JetFrac(velType)*I.VolFrac/100 for I in Impacts]
 
@@ -80,7 +80,7 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velType):
 ###
 # 2. Parameter space diagrams
 
-def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagDim,label):
+def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,velIni,meshType,DiagDim,label):
     
     npts = len(Angles)
     
@@ -176,7 +176,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
                 Cone = dgc.Cone(ConeDiam/2,a)                
                 
                 Drop = dgc.Drop(dd/2,oc,71,DropSpeed) # ~5000 points in the drop
-                Impact = Cone.impact(Drop,oriType)
+                Impact = Cone.impact(Drop,oriType,velIni,meshType)
                 JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetFrac(velType)
                 JetNRJ[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetNRJ(velType) # [J]
                 JetNRJratio[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetNRJ(velType)/(Impact.VolFrac/100*4/3*np.pi*(dd/2)**3*rho/2*DropSpeed**2)
@@ -711,7 +711,7 @@ def PhaseDiagrams(RelOffCents,ConeDiam,Angles,RelDropDiams,oriType,velType,DiagD
 ###
 # 3. Cone optimization diagrams
 
-def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,label):
+def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,velIni,meshType,npts,ndrops,dropDist,label):
     
     savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\Optimization/' + label + '_' + str(npts) + '_' + str(ndrops)
 
@@ -873,7 +873,7 @@ def OptiDiagrams(ConeSizes,sizeType,ConeAngles,oriType,npts,ndrops,dropDist,labe
                     
                     if dr<(cr+ds)*0.95:
                         
-                        I = dgc.Cone(cr,a).impact(dgc.Drop(ds,dr,71,dv),oriType)
+                        I = dgc.Cone(cr,a).impact(dgc.Drop(ds,dr,71,dv),oriType,velIni,meshType)
                         
                         TotalTouchingNRJ = TotalTouchingNRJ + 4/3*np.pi*(ds/1000)**3*rho/2*dv**2
     
