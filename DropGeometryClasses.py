@@ -275,6 +275,10 @@ class Drop:
         
         self.Npts = npts
         
+        self.Volume = 4/3*np.pi*radius**3
+        
+        self.Mass = self.Volume*997e-9 # rho in [kg/mm3]
+        
         ### Mesh of points in the drop
         
         
@@ -781,9 +785,6 @@ class Impact:
         dispX1 = xi1-meshXci
         dispX2 = xi2-meshXci
         
-        dispY1 = yi1-meshYci
-        dispY2 = yi2-meshYci
-        
         velfactor1 = np.divide(dispX1,meshVXci)
         velfactor2 = np.divide(dispX2,meshVXci)
         
@@ -794,24 +795,51 @@ class Impact:
         # intersection 
         
         if self.Cone.Alpha>np.pi/6:     
-            inter = ((velfactor1>0) & incone1 & (xi1<0)) | ( (velfactor2>0) & incone2 & (xi2<0) )
+            inter1 = ((velfactor1>0) & incone1 & (xi1<0))
+            inter2 = ((velfactor2>0) & incone2 & (xi2<0))
             
-        elif  self.Cone.Alpha<np.pi/6:             
-            inter = ((velfactor1>0)&(incone1)&(xi1>0)) | ((velfactor2>0)&(incone2)&(xi2>0))
+            inter = inter1 | inter2
             
-        else:
-            inter = ((velfactor1>0)&(incone1)) | ((velfactor2>0)&(incone2))
+        elif  self.Cone.Alpha<np.pi/6:    
+            inter1 = ((velfactor1>0)&(incone1)&(xi1>0))
+            inter2 = ((velfactor2>0)&(incone2)&(xi2>0))
+            
+            inter = inter1 | inter2
+            
+        else:   
+            inter1 = ((velfactor1>0)&(incone1)) 
+            inter2 = ((velfactor2>0)&(incone2))
+            
+            inter = inter1 | inter2        
         
         
+        cos1 = ( (np.square(meshXci-xi1) + np.square(meshYci-yi1)) + (np.square(xi1-meshXci) + np.square(yi1-c1*meshXci)) - (np.square(meshYci-c1*meshXci)))  / (2 * np.sqrt(np.square(meshXci-xi1) + np.square(meshYci-yi1)) * np.sqrt(np.square(xi1-meshXci) + np.square(yi1-c1*meshXci)))
+        cos2 = ( (np.square(meshXci-xi2) + np.square(meshYci-yi2)) + (np.square(xi2-meshXci) + np.square(yi2-c2*meshXci)) - (np.square(meshYci-c2*meshXci)))  / (2 * np.sqrt(np.square(meshXci-xi2) + np.square(meshYci-yi2)) * np.sqrt(np.square(xi2-meshXci) + np.square(yi2-c2*meshXci)))
+          
         
         self.meshJFxci = self.meshXci[inter]
         self.meshJFyci = self.meshYci[inter] 
         self.meshJFx = self.meshX[inter]
         self.meshJFy = self.meshY[inter]
-        self.meshJFVx = self.meshVX[inter]
-        self.meshJFVy = self.meshVY[inter]
+        
+        VXproj = self.meshVX
+        VYproj = self.meshVY
+        
+        
+        VXproj[inter1] = VXproj[inter1]*cos1[inter1]
+        VYproj[inter1] = VYproj[inter1]*cos1[inter1]
+        
+        VXproj[inter2] = VXproj[inter2]*cos2[inter2]
+        VYproj[inter2] = VYproj[inter2]*cos2[inter2]
+        
+        self.meshJFVx = VXproj[inter]
+        self.meshJFVy = VXproj[inter]
         self.meshJH = self.meshH[inter] 
+        
+        
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
+        
+        
         
         if (np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone)) | ((self.Drop.Rdrop-np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd)))>(self.Cone.Rcone)):
             JetFrac = 0
@@ -863,10 +891,10 @@ class Impact:
         
         rho = 997e-9 # [kg/mm3]
         
-        self.Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
+        Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
         # Weighted average of trajectories squared velocities by thickness
 
-        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*self.Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
+        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
         
         return(self.JetNRJ)
     
@@ -874,9 +902,11 @@ class Impact:
         
         g = 9.81*1e-3 # in [mm.ms-2]
         
-        self.DispertionDist = self.Veq2*np.sin(2*(np.pi/2-self.Cone.Alpha))/g
+        Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
         
-        self.DispertionDist_Var = np.sqrt(np.average(((np.square(self.meshJFVx)+np.square(self.meshJFVy))*np.sin(2*(np.pi/2-self.Cone.Alpha))/g-self.Veq2)**2, weights=self.meshJH))
+        self.DispertionDist = Veq2*np.sin(2*(np.pi/2-self.Cone.Alpha))/g
+        
+        self.DispertionDist_Var = np.sqrt(np.average(((np.square(self.meshJFVx)+np.square(self.meshJFVy))*np.sin(2*(np.pi/2-self.Cone.Alpha))/g-Veq2)**2, weights=self.meshJH))
         
         return(self.DispertionDist,self.DispertionDist_Var)
     
