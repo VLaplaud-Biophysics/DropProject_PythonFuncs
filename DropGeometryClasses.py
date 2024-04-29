@@ -81,9 +81,9 @@ class Cone:
     
     ######  Impact with a drop
     
-    def impact(self,drop,oriType,velIni):
+    def impact(self,drop,oriType,velIni,meshType):
         
-        I = Impact(drop,self,oriType,velIni)
+        I = Impact(drop,self,oriType,velIni,meshType)
         
         return(I)
     
@@ -222,8 +222,8 @@ class Cone:
         if not Drop == None:
             
             
-            ax[0].plot(Drop.Xd,Drop.Yd,'b*',ms = 3)
-            ax[1].plot(Drop.Xd,Drop.Yd,'b*',ms = 3)
+            ax[0].plot(Drop.Xd/np.sin(self.Alpha),0,'b*',ms = 3)
+            ax[1].plot(Drop.Xd,0,'b*',ms = 3)
             
             meshX,meshY,meshH = Drop.mesh()
             droplabel = 'Drop height'
@@ -376,9 +376,9 @@ class Drop:
 
     ######  Impact with a cone
     
-    def impact(self,cone,oriType,velIni):
+    def impact(self,cone,oriType,velIni,meshType):
         
-        I = Impact(self,cone,oriType,velIni)
+        I = Impact(self,cone,oriType,velIni,meshType)
         
         return(I)
 
@@ -399,8 +399,8 @@ class Impact:
         if meshType == 'point':
             if (oriType == 'Hgrad')|(oriType == 'Drop'):
                 raise ValueError('Invalid case ! A single point mesh is incompatible with velocity origins "Drop" and "Hgrad"')
-            if velType == 'Radial':
-                raise ValueError('Invalid case ! A single point mesh is incompatible with velocity type "Radial"')
+            if velIni == 'Radial':
+                raise ValueError('Invalid case ! A single point mesh is incompatible with initial velocity type "Radial"')
                     
 
         
@@ -464,7 +464,7 @@ class Impact:
             meshXci,meshYci = self.Cone.Cone2Circle(self.meshX, self.meshY) 
             
             if self.meshType == 'point':
-                nmesh = np.numel(meshX)
+                nmesh = np.size(self.meshX)
                 angles = np.linspace(0,np.pi*2,nmesh)
                 R = self.Drop.Rdrop/100
                 
@@ -473,6 +473,10 @@ class Impact:
             
             
             if self.oriType == 'Hgrad':
+                
+                
+                self.oriX = meshXci[np.argmax(self.meshH)]
+                self.oriY = meshYci[np.argmax(self.meshH)]
             
                 HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
                 
@@ -491,10 +495,10 @@ class Impact:
     
             elif self.oriType == 'Drop':
                 
-                Xdci,Ydci = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd)
+                self.oriX,self.oriY = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd)
                 
-                meshOXci = meshXci-Xdci
-                meshOYci = meshYci-Ydci
+                meshOXci = meshXci-self.oriX
+                meshOYci = meshYci-self.oriY
                 
                 self.meshDist = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
                 self.impactR = np.max(self.meshDist)
@@ -504,12 +508,19 @@ class Impact:
                 
             elif self.oriType == 'Hmax':
                 
-                oriX = meshXci[np.argmax(self.meshH)]
-                oriY = meshYci[np.argmax(self.meshH)]
+                if self.Drop.Xd>self.Cone.Rcone:
+                    
+                    self.oriX = self.Cone.Rcircle
+                    
+                else:
+                    
+                    self.oriX = self.Drop.Xd
+                    
+                self.oriY = 0
                 
                 if self.meshType == 'zone':
-                    meshOXci = meshXci-oriX
-                    meshOYci = meshYci-oriY
+                    meshOXci = meshXci-self.oriX
+                    meshOYci = meshYci-self.oriY
                 
                     self.meshDist = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
                     self.impactR = np.max(self.meshDist)
@@ -518,18 +529,18 @@ class Impact:
                     meshOXci = pointmeshX
                     meshOYci = pointmeshY
                     
-                    meshXci = meshOXci + oriX
-                    meshYci = meshOYci + oriY
+                    meshXci = meshOXci + self.oriX
+                    meshYci = meshOYci + self.oriY
             
                 
             elif self.oriType == 'Central':
                 
-                oriX = meshXci.mean()
-                oriY = meshYci.mean()
+                self.oriX = meshXci.mean()
+                self.oriY = meshYci.mean()
                 
                 if self.meshType == 'zone':
-                    meshOXci = meshXci-oriX
-                    meshOYci = meshYci-oriY
+                    meshOXci = meshXci-self.oriX
+                    meshOYci = meshYci-self.oriY
                 
                     self.meshDist = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
                     self.impactR = np.max(self.meshDist)
@@ -538,17 +549,17 @@ class Impact:
                     meshOXci = pointmeshX
                     meshOYci = pointmeshY
                     
-                    meshXci = meshOXci + oriX
-                    meshYci = meshOYci + oriY
+                    meshXci = meshOXci + self.oriX
+                    meshYci = meshOYci + self.oriY
                 
             elif self.oriType == 'CentralHeight':
                 
-                oriX =  np.sum(np.multiply(meshXci,self.meshH))/np.sum(self.meshH)
-                oriY = np.sum(np.multiply(meshYci,self.meshH))/np.sum(self.meshH)
+                self.oriX =  np.sum(np.multiply(meshXci,self.meshH))/np.sum(self.meshH)
+                self.oriY = np.sum(np.multiply(meshYci,self.meshH))/np.sum(self.meshH)
                 
                 if self.meshType == 'zone':
-                    meshOXci = meshXci-oriX
-                    meshOYci = meshYci-oriY
+                    meshOXci = meshXci-self.oriX
+                    meshOYci = meshYci-self.oriY
                 
                     self.meshDist = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
                     self.impactR = np.max(self.meshDist)
@@ -557,8 +568,8 @@ class Impact:
                     meshOXci = pointmeshX
                     meshOYci = pointmeshY
                     
-                    meshXci = meshOXci + oriX
-                    meshYci = meshOYci + oriY
+                    meshXci = meshOXci + self.oriX
+                    meshYci = meshOYci + self.oriY
             
             self.ori = meshXci,meshYci,meshOXci,meshOYci
             
@@ -595,9 +606,8 @@ class Impact:
             elif self.velIni == 'Radial':
                 self.meshVXci_norm = np.multiply(np.divide(self.meshOXci,normCi),self.meshDist)/self.impactR*self.velnorm/np.sqrt(2) 
                 self.meshVYci_norm = np.multiply(np.divide(self.meshOYci,normCi),self.meshDist)/self.impactR*self.velnorm/np.sqrt(2) 
-######################################################################################################################################
-#######################################################################################################################################
-            
+
+        
             meshX,meshY = self.Cone.Circle2Cone(meshXci, meshYci)
             T,R = vf.ToCirc(meshX,meshY, angle = 'rad') 
             
@@ -672,11 +682,39 @@ class Impact:
         meshPts_X = ml.repmat(meshXci,len(Time),1)
         meshPts_Y = ml.repmat(meshYci,len(Time),1)
         
-        meshPts_VX = ml.repmat(meshVXci,len(Time),1)
-        meshPts_VY = ml.repmat(meshVYci,len(Time),1)     
+                
+        # meshPts_VX = ml.repmat(meshVXci,len(Time),1)
+        # meshPts_VY = ml.repmat(meshVYci,len(Time),1)          
+                
+        # trajX = meshPts_X + np.multiply(meshPts_VX,trajT)
+        # trajY = meshPts_Y + np.multiply(meshPts_VY,trajT)
+                
         
-        trajX = meshPts_X + np.multiply(meshPts_VX,trajT)
-        trajY = meshPts_Y + np.multiply(meshPts_VY,trajT)
+        
+        for it in range(1,len(Time)):
+            
+            meshPts_X[it,:] = meshPts_X[it-1,:] + meshVXci*(Time[it]-Time[it-1])
+            meshPts_Y[it,:] = meshPts_Y[it-1,:] + meshVYci*(Time[it]-Time[it-1])
+            
+            out_mask = np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle
+            
+            
+            Xco,Yco = dgf.Circle2Cone(meshPts_X[it-1,:],meshPts_Y[it-1,:], self.Cone.Alpha, 0)
+            Xco1,Yco1 = dgf.Circle2Cone(meshPts_X[it,:],meshPts_Y[it,:], self.Cone.Alpha, 0)
+            
+            
+            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVXci*(Time[it]-Time[it-1]),meshVYci*(Time[it]-Time[it-1]),Xco,Yco, self.Cone.Alpha)
+            
+            
+            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
+            
+            
+            meshVXci[out_mask] = velX_new[out_mask]/(Time[it]-Time[it-1])
+            meshVYci[out_mask] = velY_new[out_mask]/(Time[it]-Time[it-1])
+            
+        
+        trajX = meshPts_X
+        trajY = meshPts_Y
         
        
         T,r =  vf.ToCirc(trajX,trajY,angle='rad')
@@ -733,22 +771,36 @@ class Impact:
         a = np.divide(meshVYci,meshVXci)
         b = np.divide((meshVXci*meshYci - meshVYci*meshXci),meshVXci)
         
-        # intersection points x coord
+        # intersection points xy coord
         xi1 = b/(c1-a)
         xi2 = b/(c2-a)
         
         yi1 = c1*xi1
         yi2 = c2*xi2
         
+        dispX1 = xi1-meshXci
+        dispX2 = xi2-meshXci
+        
+        dispY1 = yi1-meshYci
+        dispY2 = yi2-meshYci
+        
+        velfactor1 = np.divide(dispX1,meshVXci)
+        velfactor2 = np.divide(dispX2,meshVXci)
+        
+        incone1 = np.sqrt(np.square(xi1)+np.square(yi1))<self.Cone.Rcircle
+        incone2 = np.sqrt(np.square(xi2)+np.square(yi2))<self.Cone.Rcircle
+        
         
         # intersection 
         
-        if self.Cone.Alpha>np.pi/6:
-            inter = (meshVXci <=0)&(((xi1<=0)&(xi1>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2<=0)&(xi2>=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
-        elif  self.Cone.Alpha<np.pi/6: 
-            inter =  ((np.divide(meshVXci,xi1-meshXci)>=0)|(np.divide(meshVXci,xi2-meshXci)>=0))&(((xi1>=0)&(xi1<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2)))|((xi2>=0)&(xi2<=-1*self.Cone.Rcircle*np.cos(self.Cone.Beta/2))))
+        if self.Cone.Alpha>np.pi/6:     
+            inter = ((velfactor1>0) & incone1 & (xi1<0)) | ( (velfactor2>0) & incone2 & (xi2<0) )
+            
+        elif  self.Cone.Alpha<np.pi/6:             
+            inter = ((velfactor1>0)&(incone1)&(xi1>0)) | ((velfactor2>0)&(incone2)&(xi2>0))
+            
         else:
-            inter = (meshVXci <=0)&((np.abs(yi1)<self.Cone.Rcircle)|(np.abs(yi2)<self.Cone.Rcircle))
+            inter = ((velfactor1>0)&(incone1)) | ((velfactor2>0)&(incone2))
         
         
         
@@ -811,12 +863,22 @@ class Impact:
         
         rho = 997e-9 # [kg/mm3]
         
-        Veq2 = np.sum(np.multiply(self.meshJH,np.sqrt(np.square(self.meshJFVx)+np.square(self.meshJFVy))))/np.sum(self.meshJH)
-        
-        # print(np.sqrt(Veq2))
-        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*self.VolFrac/100*self.compute_JetFrac(velType)/100*Veq2
+        self.Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
+        # Weighted average of trajectories squared velocities by thickness
+
+        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*self.Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
         
         return(self.JetNRJ)
+    
+    def compute_DispertionDist(self,velType):
+        
+        g = 9.81*1e-3 # in [mm.ms-2]
+        
+        self.DispertionDist = self.Veq2*np.sin(2*(np.pi/2-self.Cone.Alpha))/g
+        
+        self.DispertionDist_Var = np.sqrt(np.average(((np.square(self.meshJFVx)+np.square(self.meshJFVy))*np.sin(2*(np.pi/2-self.Cone.Alpha))/g-self.Veq2)**2, weights=self.meshJH))
+        
+        return(self.DispertionDist,self.DispertionDist_Var)
     
     ###############################################################################
     #                                                                             #
@@ -869,7 +931,7 @@ class Impact:
        
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
 
-        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))  
+        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))/np.sqrt(2)
         # fieldnormCi = 4
         
         meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
@@ -892,15 +954,19 @@ class Impact:
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
                                  conecolor=ConeColor,title= Title + '_' + VelType,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
-        self.compute_JetFrac(VelType)
-        ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
-        ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
-        
-        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=5,headlength=18,headaxislength=16)
-        q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=20,headlength=18,headaxislength=16)
 
-        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity',ticks=np.linspace(0,self.Drop.Vel,6))
-        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity',ticks=np.linspace(0,self.Drop.Vel,6))
+        self.compute_JetFrac(VelType)
+        # ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
+        # ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
+        
+        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+        q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=6,headlength=18,headaxislength=16)
+
+        ax[0].plot(self.oriX,self.oriY,'*m',ms = 10,zorder=7)
+        ax[1].plot(self.oriX*np.sin(self.Cone.Alpha),self.oriY,'*m',ms = 10,zorder=7)
+        
+        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity')
+        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity')
     
     def plot_div(self,**kwargs):
         
@@ -1096,11 +1162,11 @@ class Impact:
     
         order = np.argsort(trajT.flatten())
 
-        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)   
+        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)   
         ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time')
         
-        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],s=2,zorder = -1)
+        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)
         
         
         ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits')
@@ -1113,8 +1179,7 @@ class Impact:
         
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time')
     
-        return(fig)
-    
+        return    
     
     
     
