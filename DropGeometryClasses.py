@@ -301,7 +301,7 @@ class Drop:
         
         Rmax = self.Rdrop
         
-        RgridBorder = np.ones((1,2*npts))*Rmax
+        RgridBorder = np.ones((1,2*npts))*Rmax*0.998
         AgridBorder = np.linspace(0,2*np.pi,2*npts)
         
         XgridBorder,YgridBorder = vf.ToCart(AgridBorder,RgridBorder,angle='rad')
