@@ -895,8 +895,9 @@ class Impact:
         # Weighted average of trajectories squared velocities by thickness
 
         self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
+        self.JetNRJ_Bal = self.JetNRJ*np.sin(2*(np.pi/2-self.Cone.Alpha))
         
-        return(self.JetNRJ)
+        return(self.JetNRJ,self.JetNRJ_Bal)
     
     def compute_DispertionDist(self,velType):
         
