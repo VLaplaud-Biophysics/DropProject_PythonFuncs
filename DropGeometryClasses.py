@@ -301,7 +301,7 @@ class Drop:
         
         Rmax = self.Rdrop
         
-        RgridBorder = np.ones((1,2*npts))*Rmax*0.998
+        RgridBorder = np.ones((1,2*npts))*Rmax
         AgridBorder = np.linspace(0,2*np.pi,2*npts)
         
         XgridBorder,YgridBorder = vf.ToCart(AgridBorder,RgridBorder,angle='rad')
@@ -829,11 +829,14 @@ class Impact:
         VXproj[inter1] = VXproj[inter1]*cos1[inter1]
         VYproj[inter1] = VYproj[inter1]*cos1[inter1]
         
+        # print(cos1[inter1])
+        # print(cos2[inter2])
+        
         VXproj[inter2] = VXproj[inter2]*cos2[inter2]
         VYproj[inter2] = VYproj[inter2]*cos2[inter2]
         
         self.meshJFVx = VXproj[inter]
-        self.meshJFVy = VXproj[inter]
+        self.meshJFVy = VYproj[inter]
         self.meshJH = self.meshH[inter] 
         
         

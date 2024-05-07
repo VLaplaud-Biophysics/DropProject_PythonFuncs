@@ -99,7 +99,8 @@ def SphereH(R,X,Y,Xs):
     
     H = 2*np.sqrt(R**2-(X-Xs)**2-Y**2)
     
-    H[np.isnan(H)] = 0
+    H[np.isnan(H)] = R/1000
+    H[H==0] = R/1000
     
     return(H)
 
