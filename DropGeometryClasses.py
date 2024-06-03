@@ -16,6 +16,8 @@ import VallapFunc_DP as vf
 
 import time as time
 
+import os
+
 
 ##############################################################
 # 1. A class for the cone where the drop is going to impact. #
@@ -204,9 +206,6 @@ class Cone:
             ax[1].set_xticks([])
             ax[1].set_yticks([])
         
-        ax[0].set_aspect('equal')
-        ax[1].set_aspect('equal')
-        
         # (0,0) point
         ax[0].plot(0,0,'g*',ms = 3)
         ax[1].plot(0,0,'g*',ms = 3)
@@ -216,6 +215,7 @@ class Cone:
         ax[0].plot(sectorX,sectorY,'--r',lw=1, label = 'Removed sector',zorder=2)
 
         ax[1].plot(self.Rcone*np.cos(tx),self.Rcone*np.sin(tx),color = ConeColor, lw=ConeLW, label = 'Cone',zorder=1);
+        
         
         
         
@@ -247,6 +247,14 @@ class Cone:
             
             ax[0].plot(X,Y, 'b-', lw = 1,label='Deformed drop',zorder=4)      
             ax[1].plot(Xdrop + Rd*np.cos(tx), Ydrop + Rd*np.sin(tx), 'b-', lw = 1, label='Drop',zorder=4)
+        
+        
+        # ax[0].set_xlim([0,500])
+        # ax[0].set_ylim([-1.5,1.5])
+        
+        ax[0].set_aspect('equal')
+        ax[1].set_aspect('equal')
+        
         
         # ax[0].legend(fontsize='xx-small',loc='upper right')
         # ax[1].legend(fontsize='xx-small',loc='upper right')
@@ -478,15 +486,19 @@ class Impact:
             
             if self.oriType == 'Hgrad':
                 
-                
-                self.oriX = meshXci[np.argmax(self.meshH)]
-                self.oriY = meshYci[np.argmax(self.meshH)]
-            
+                           
                 HgradInterp_x,HgradInterp_y = self.Drop.Hgradient()       
                 
                 meshOX = -HgradInterp_x(self.meshX,self.meshY) 
                 meshOY = -HgradInterp_y(self.meshX,self.meshY) 
                 
+                # to circle config
+                meshOXci,meshOYci = dgf.VelCone2Circle(meshOX, meshOY,self.meshX,self.meshY, self.Cone.Alpha) # Circle config, impacting fraction
+    
+                
+                
+                self.oriX = meshXci[np.argmax(self.meshH)]
+                self.oriY = meshYci[np.argmax(self.meshH)]
                 
                 mesh1 = meshXci-meshXci[np.argmax(self.meshH)]
                 mesh2 = meshYci-meshYci[np.argmax(self.meshH)]
@@ -494,9 +506,7 @@ class Impact:
                 
                 self.impactR = np.max(self.meshDist)
                 
-                # to circle config
-                meshOXci,meshOYci = dgf.VelCone2Circle(meshOX, meshOY,self.meshX,self.meshY, self.Cone.Alpha) # Circle config, impacting fraction
-    
+                
             elif self.oriType == 'Drop':
                 
                 self.oriX,self.oriY = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd)
@@ -601,27 +611,25 @@ class Impact:
             meshXci,meshYci,meshOXci,meshOYci = self.orientation() # Cone config, full drop       
 
             
-            normCi = np.sqrt(np.square(self.meshOXci)+np.square(self.meshOYci))/np.sqrt(2)
+            normCi = np.sqrt(np.square(self.meshOXci)+np.square(self.meshOYci))
                   
             if self.velIni == 'VelNorm':
-                self.meshVXci_norm = np.divide(self.meshOXci,normCi)*self.velnorm/np.sqrt(2)
-                self.meshVYci_norm = np.divide(self.meshOYci,normCi)*self.velnorm/np.sqrt(2)
+                self.meshVXci_norm = np.divide(self.meshOXci,normCi)*self.velnorm
+                self.meshVYci_norm = np.divide(self.meshOYci,normCi)*self.velnorm
                 
             elif self.velIni == 'Radial':
-                self.meshVXci_norm = np.multiply(np.divide(self.meshOXci,normCi),self.meshDist)/self.impactR*self.velnorm/np.sqrt(2) 
-                self.meshVYci_norm = np.multiply(np.divide(self.meshOYci,normCi),self.meshDist)/self.impactR*self.velnorm/np.sqrt(2) 
+                self.meshVXci_norm = np.multiply(np.divide(self.meshOXci,normCi),self.meshDist)/self.impactR*self.velnorm
+                self.meshVYci_norm = np.multiply(np.divide(self.meshOYci,normCi),self.meshDist)/self.impactR*self.velnorm
 
-        
-            meshX,meshY = self.Cone.Circle2Cone(meshXci, meshYci)
-            T,R = vf.ToCirc(meshX,meshY, angle = 'rad') 
-            
-            
-            meshVX_tan = -np.cos(T)*self.veltan*np.sin(self.Cone.Alpha)
-            meshVY_tan = -np.sin(T)*self.veltan*np.sin(self.Cone.Alpha)
+
             
             Tci,Rci = vf.ToCirc(meshXci,meshYci, angle = 'rad') 
             self.meshVXci_tan = -np.cos(Tci)*self.veltan
             self.meshVYci_tan = -np.sin(Tci)*self.veltan
+            
+            meshX,meshY = dgf.Circle2Cone(meshXci, meshYci, self.Cone.Alpha, 0)
+            
+            meshVX_tan,meshVY_tan = dgf.VelCircle2Cone(self.meshVXci_tan, self.meshVYci_tan, meshXci, meshYci, self.Cone.Alpha)
             
             meshVX_tan_div0 = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
             meshVY_tan_div0 = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
@@ -702,24 +710,31 @@ class Impact:
             
             out_mask = np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle
             
+            # out_mask = (np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle) & ()
+            
             
             Xco,Yco = dgf.Circle2Cone(meshPts_X[it-1,:],meshPts_Y[it-1,:], self.Cone.Alpha, 0)
             Xco1,Yco1 = dgf.Circle2Cone(meshPts_X[it,:],meshPts_Y[it,:], self.Cone.Alpha, 0)
             
             
-            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVXci*(Time[it]-Time[it-1]),meshVYci*(Time[it]-Time[it-1]),Xco,Yco, self.Cone.Alpha)
+            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVXci,meshVYci,Xco,Yco, self.Cone.Alpha)
             
             
             velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
             
+            chgmask = np.multiply(velY_new,meshVYci) < 0
             
-            meshVXci[out_mask] = velX_new[out_mask]/(Time[it]-Time[it-1])
-            meshVYci[out_mask] = velY_new[out_mask]/(Time[it]-Time[it-1])
+            velX_new[chgmask] = meshVXci[chgmask]
+            velY_new[chgmask] = meshVYci[chgmask]
+            
+            
+            meshVXci[out_mask] = velX_new[out_mask]
+            meshVYci[out_mask] = velY_new[out_mask]
             
         
         trajX = meshPts_X
         trajY = meshPts_Y
-        
+
        
         T,r =  vf.ToCirc(trajX,trajY,angle='rad')
         
@@ -743,6 +758,11 @@ class Impact:
 
         badT,badR = vf.ToCirc(badX-meshPts_X[badPts],badY-meshPts_Y[badPts],angle='rad')
         
+        badIn = badR <= self.Cone.Rcircle
+ 
+        
+        badOut = badR > self.Cone.Rcircle
+        
         lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
         
         lz = (lx*np.abs(np.sin(badT))+np.abs(meshPts_Y[badPts]))/np.sin(Beta/2)
@@ -751,10 +771,15 @@ class Impact:
         closeT1 = np.abs((np.mod(badT,2*np.pi)-T1))<np.abs((np.mod(badT,2*np.pi)-T2))
         badT[closeT1] = T1
         badT[~closeT1] = T2
-
-        trajX[badPts],trajY[badPts] = vf.ToCart(badT,badR-lx+lz)
         
-        trajX[badPts],trajY[badPts] = trajX[badPts]+self.Cone.Xc,trajY[badPts]+self.Cone.Yc    
+        badX[badIn],badY[badIn] = vf.ToCart(badT[badIn],badR[badIn]-lx[badIn]+lz[badIn])
+        # badX[badOut],badY[badOut] = vf.ToCart(badT[badOut],badR[badOut]-lx[badOut]+lz[badOut])
+        # 
+
+
+        trajX[badPts] = badX
+        trajY[badPts] = badY 
+                       
         
         return(trajX,trajY,trajT)
     
@@ -822,15 +847,13 @@ class Impact:
         self.meshJFx = self.meshX[inter]
         self.meshJFy = self.meshY[inter]
         
-        VXproj = self.meshVX
-        VYproj = self.meshVY
+        VXproj = self.meshVXci_div0
+        VYproj = self.meshVYci_div0
         
         
         VXproj[inter1] = VXproj[inter1]*cos1[inter1]
         VYproj[inter1] = VYproj[inter1]*cos1[inter1]
-        
-        # print(cos1[inter1])
-        # print(cos2[inter2])
+
         
         VXproj[inter2] = VXproj[inter2]*cos2[inter2]
         VYproj[inter2] = VYproj[inter2]*cos2[inter2]
@@ -894,11 +917,18 @@ class Impact:
         
         rho = 997e-9 # [kg/mm3]
         
-        Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
-        # Weighted average of trajectories squared velocities by thickness
-
-        self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
-        self.JetNRJ_Bal = self.JetNRJ*np.sin(2*(np.pi/2-self.Cone.Alpha))
+        if np.size(self.meshJFVx)>0:
+        
+            Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
+            # Weighted average of trajectories squared velocities by thickness
+    
+            self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
+            self.JetNRJ_Bal = self.JetNRJ*np.sin(2*(np.pi/2-self.Cone.Alpha))
+        
+        else:
+            
+            self.JetNRJ = 0
+            self.JetNRJ_Bal = 0
         
         return(self.JetNRJ,self.JetNRJ_Bal)
     
@@ -906,11 +936,20 @@ class Impact:
         
         g = 9.81*1e-3 # in [mm.ms-2]
         
-        Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
+        if np.size(self.meshJFVx)>0:
         
-        self.DispertionDist = Veq2*np.sin(2*(np.pi/2-self.Cone.Alpha))/g
+            Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
+            
+            self.DispertionDist = Veq2*np.sin(2*(np.pi/2-self.Cone.Alpha))/g
+            
+            self.DispertionDist_Var = np.sqrt(np.average(((np.square(self.meshJFVx)+np.square(self.meshJFVy))*np.sin(2*(np.pi/2-self.Cone.Alpha))/g-Veq2)**2, weights=self.meshJH))
+      
+        else:
+            
+            self.DispertionDist = 0
+            
+            self.DispertionDist_Var = 0
         
-        self.DispertionDist_Var = np.sqrt(np.average(((np.square(self.meshJFVx)+np.square(self.meshJFVy))*np.sin(2*(np.pi/2-self.Cone.Alpha))/g-Veq2)**2, weights=self.meshJH))
         
         return(self.DispertionDist,self.DispertionDist_Var)
     
@@ -965,24 +1004,15 @@ class Impact:
        
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
 
-        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))/np.sqrt(2)
-        # fieldnormCi = 4
+        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))
+ 
         
         meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
-        
-        # speedres = 10000
-
-        # meshVX, meshVY = self.Cone.Circle2Cone(meshVXci/speedres+meshXci, meshVYci/speedres+meshYci)
-        
-        # meshVX = (meshVX - meshX)*speedres
-        # meshVY = (meshVY - meshY)*speedres
-        
+  
         
         meshVX,meshVY = dgf.VelCircle2Cone(meshVXci,meshVYci, meshX, meshY, self.Cone.Alpha)
         
         fieldnorm = np.sqrt(np.square(meshVX)+np.square(meshVY))     
-        # fieldnorm = 4
-
     
         
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
@@ -990,8 +1020,8 @@ class Impact:
         
 
         self.compute_JetFrac(VelType)
-        # ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
-        # ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
+        ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
+        ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
         
         q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
         q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=6,headlength=18,headaxislength=16)
@@ -1184,8 +1214,8 @@ class Impact:
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
                 
-            
-        
+         
+       
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
                                  conecolor=ConeColor,title='JetFrac = ' + str(self.compute_JetFrac(velType)) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
            
@@ -1196,6 +1226,7 @@ class Impact:
     
         order = np.argsort(trajT.flatten())
 
+        
         sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)   
         ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time')
@@ -1203,15 +1234,130 @@ class Impact:
         sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)
         
         
-        ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits')
-        
-        # ax[1].set_box_aspect(1)
-        
-        
-        ax[1].set_xlim(np.array([-10,7]))
-        ax[1].set_ylim(np.array([-7,7]))
-        
+        ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits',zorder=4)
+
         fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time')
+        
+        
+            
+    
+        return    
+    
+    def plot_splash_movie(self,Time,velType,label,xlims,ylims,**kwargs):
+        
+        Title     = 'kw: title= ''My title for the figure'''
+        Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
+        Ylabel_Ci = 'kw: ylabelCi= ''My ylabel for the circle config'''
+        Xlabel_Co = 'kw: xlabelCo= ''My xlabel for the cone config'''
+        Ylabel_Co = 'kw: ylabelCo= ''My ylabel for the cone config'''
+        NoLabels  = False
+        
+        ConeColor = 'g'
+        ConeLW = 1
+        
+        for key, value in kwargs.items(): 
+            if key == 'title':
+                Title = value
+            elif key == 'xlabelCo':
+                Xlabel_Co = value
+            elif key == 'ylabelCo':
+                Ylabel_Co = value
+            elif key == 'xlabelCi':
+                Xlabel_Ci = value
+            elif key == 'ylabelCi':
+                Ylabel_Ci = value
+            elif key == 'nolabels':
+                NoLabels = value
+                if value == True:
+                    Xlabel_Ci = ''
+                    Ylabel_Ci = ''
+                    Xlabel_Co = ''
+                    Ylabel_Co = ''
+            elif key == 'conecolor':
+                ConeColor = value
+            elif key == 'conelinewidth':
+                ConeLW = value
+
+                    
+            else:
+                print('Unknown key : ' + key + '. Kwarg ignored.')
+                
+        savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\Movies\\' + label 
+         
+        os.makedirs(savepath,exist_ok=True)
+        
+        trajX,trajY,trajT = self.compute_traj(Time,velType)
+            
+        trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        
+        
+        
+        # movie
+        
+        timevect = np.unique(trajT)
+        
+        
+        for T,iT in zip(timevect,range(len(timevect))):
+            
+            fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
+                                     conecolor=ConeColor,title='JetFrac = ' + str(self.compute_JetFrac(velType)) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+            
+            
+            
+            H = T*self.Drop.Vel
+            
+            
+            if H > self.Drop.Rdrop:
+                H = 0
+            
+            points_mask = (trajT == 0)
+            
+            heightmask = self.meshH/2 > self.Drop.Rdrop - H 
+            
+            ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            
+            ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            
+                
+            for i in range(iT):
+                
+                i= i+1
+                
+                Ti = timevect[i]
+                
+
+                points_mask = (trajT == timevect[iT-i])
+                
+                
+                
+                Hi = Ti*self.Drop.Vel                
+                
+                if Hi < self.Drop.Rdrop:
+                    
+                    heightmask = self.meshH/2 > self.Drop.Rdrop - Hi
+                    
+                elif Hi < 2*self.Drop.Rdrop:
+                    
+                    heightmask = self.meshH/2 > Hi - self.Drop.Rdrop
+                    
+                else:
+                    Hi = 0
+                    heightmask = self.meshH/2 > self.Drop.Rdrop - Hi
+                    
+                
+                
+                ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1)
+                ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1)
+                
+            ax[1].set_xlim(xlims)
+            ax[1].set_ylim(ylims)
+                
+            figname = savepath + '\Time_' + str(np.round(T*1000)) + '.png'
+            
+            plt.savefig(figname)
+            
+            plt.close(fig)
+           
     
         return    
     
