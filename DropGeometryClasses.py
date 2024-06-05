@@ -1306,13 +1306,14 @@ class Impact:
             
             H = T*self.Drop.Vel
             
-            
-            if H > self.Drop.Rdrop:
-                H = 0
-            
             points_mask = (trajT == 0)
             
-            heightmask = self.meshH/2 > self.Drop.Rdrop - H 
+            contactDist = np.ones(np.shape(self.meshH))*self.Drop.Rdrop + ((self.Cone.Rcone - 
+                                                                           np.sqrt(np.square(self.meshX)+np.square(self.meshY)))
+                                                                           /np.tan(self.Cone.Alpha))
+            
+            heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+            heightmask = self.meshH/2 > np.abs(H - contactDist)
             
             ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 1,vmin=0,vmax=self.Drop.Rdrop)
             
@@ -1330,19 +1331,14 @@ class Impact:
                 
                 
                 
-                Hi = Ti*self.Drop.Vel                
+                Hi = Ti*self.Drop.Vel 
                 
-                if Hi < self.Drop.Rdrop:
-                    
-                    heightmask = self.meshH/2 > self.Drop.Rdrop - Hi
-                    
-                elif Hi < 2*self.Drop.Rdrop:
-                    
-                    heightmask = self.meshH/2 > Hi - self.Drop.Rdrop
-                    
-                else:
-                    Hi = 0
-                    heightmask = self.meshH/2 > self.Drop.Rdrop - Hi
+                
+                
+                heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+                heightmask = self.meshH/2 > np.abs(Hi - contactDist)
+                
+
                     
                 
                 
