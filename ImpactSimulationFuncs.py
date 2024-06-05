@@ -110,6 +110,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     JetNRJ = np.empty(np.shape(meshA))
     JetNRJ_Bal = np.empty(np.shape(meshA))
     SheetWide = np.empty(np.shape(meshA))
+    ShapeFactor = np.empty(np.shape(meshA))
     DispertionDist = np.empty(np.shape(meshA))
     DispertionDist_Var = np.empty(np.shape(meshA))
     
@@ -129,7 +130,8 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         shutil.rmtree(savepath + '\EnRJ\\')   
         shutil.rmtree(savepath + '\DispertionDist\\')   
         shutil.rmtree(savepath + '\DispertionDist_Var\\')   
-        shutil.rmtree(savepath + '\SheetOpening\\') 
+        shutil.rmtree(savepath + '\SheetOpening\\')  
+        shutil.rmtree(savepath + '\ShapeFactor\\') 
         
         print('Done.\n')
         
@@ -163,6 +165,10 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     os.makedirs(savepath + '\SheetOpening\FixedAngle',exist_ok=True) # create folder
     os.makedirs(savepath + '\SheetOpening\FixedDrop',exist_ok=True) # create folder
     os.makedirs(savepath + '\SheetOpening\FixedDist',exist_ok=True) # create folder
+     
+    os.makedirs(savepath + '\ShapeFactor\FixedAngle',exist_ok=True) # create folder
+    os.makedirs(savepath + '\ShapeFactor\FixedDrop',exist_ok=True) # create folder
+    os.makedirs(savepath + '\ShapeFactor\FixedDist',exist_ok=True) # create folder
         
             
     print('Done.\n')
@@ -176,6 +182,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         JetNRJ = np.load(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy')
         JetNRJ_Bal = np.load(savepath + '\Data_JetNRJ_Bal_' + str(npts) + 'npts.npy')
         SheetWide = np.load(savepath + '\Data_SheetWide_' + str(npts) + 'npts.npy')
+        ShapeFactor = np.load(savepath + '\Data_ShapeFactor_' + str(npts) + 'npts.npy')
         DispertionDist = np.load(savepath + '\Data_DispertionDist_' + str(npts) + 'npts.npy')   
         DispertionDist_Var = np.load(savepath + '\Data_DispertionDist_Var_' + str(npts) + 'npts.npy') 
         
@@ -222,12 +229,14 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[0] 
                 DispertionDist_Var[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[1] 
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening(velType)[0]
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(velType)
                 
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.compute_JetFrac(velType)/100*Drop.Mass
             else:
                 
                 JetFracs[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = np.nan
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 DispertionDist_Var[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = np.nan
@@ -242,6 +251,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         np.save(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy',JetNRJ)
         np.save(savepath + '\Data_JetNRJ_Bal_' + str(npts) + 'npts.npy',JetNRJ_Bal)
         np.save(savepath + '\Data_SheetWide_' + str(npts) + 'npts.npy',SheetWide)
+        np.save(savepath + '\Data_ShapeFactor_' + str(npts) + 'npts.npy',ShapeFactor)
         np.save(savepath + '\Data_DispertionDist_' + str(npts) + 'npts.npy',DispertionDist)
         np.save(savepath + '\Data_DispertionDist_Var_' + str(npts) + 'npts.npy',DispertionDist_Var)
               
@@ -328,6 +338,26 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         
         f2.savefig(savepath + '\SheetOpening\FixedAngle\FxdADgm_'
                     + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_SheetOpen.png')
+
+        plt.close(f2)
+        
+        
+        # Shape factor
+        f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax2.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
+        ax2.set_xlabel('Offcent' + NormStr)
+        ax2.set_ylabel('DropDiam' + NormStr)
+        
+        sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=ShapeFactor[:,ia,:],vmin=0, vmax = 360,
+                          cmap='jet',s=pointSize,marker='s')
+        
+        cbar2 = plt.colorbar(sc2)
+        cbar2.set_label('Shape factor')
+        # ax2.set_aspect('equal')
+        f2.tight_layout()
+        
+        f2.savefig(savepath + '\ShapeFactor\FixedAngle\FxdADgm_'
+                    + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_ShapeFactor.png')
 
         plt.close(f2)
         
@@ -493,6 +523,26 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         plt.close(f2)
         
         
+        # Shape factor
+        f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax2.set_title('DropDiam_Norm : ' + str(round(rdd*10)/10))
+        ax2.set_xlabel('Offcent' + NormStr)
+        ax2.set_ylabel('Cone angle [°]')
+        ax2.set_xlim([0,np.max(RelOffCents)])
+        
+        sc2 = ax2.scatter(2*meshOC[idd,:,:]/Normalisation,meshA[idd,:,:]/(2*np.pi)*360,c=ShapeFactor[idd,:,:],vmin=0, 
+                          vmax = 360,cmap='jet',s=pointSize,marker='s')
+        
+        cbar2 = plt.colorbar(sc2)
+        cbar2.set_label('Shape factor')
+        f2.tight_layout()
+        
+        f2.savefig(savepath + '\SheapeFactor\FixedDrop\FxdDrDgm_'
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_ShapeFactor.png')
+        
+        plt.close(f2)
+        
+        
         print('Making and saving figures..     ',end='\r')
         
         
@@ -654,6 +704,27 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         
         f2.savefig(savepath + '\SheetOpening\FixedDist\FxdDiDgm_'
                     + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_SheetOpen.png')
+        
+        plt.close(f2)
+        
+        # SheapeFactor
+        f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax2.set_title('Offcent_Norm: ' + str(round(roc*10)/10))
+        ax2.set_xlabel('DropDiam' + NormStr)
+        ax2.set_ylabel('Cone angle [°]')
+        ax2.set_xlim([0,np.max(RelDropDiams)])
+        
+        # sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
+        
+        sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=ShapeFactor[:,:,ioc],vmin=0, vmax = 360,
+                          cmap='cividis',s=pointSize,marker='s')
+        
+        cbar2 = plt.colorbar(sc2)
+        cbar2.set_label('Shape Factor')
+        f2.tight_layout()
+        
+        f2.savefig(savepath + '\ShapeFactor\FixedDist\FxdDiDgm_'
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_ShapeFactor.png')
         
         plt.close(f2)
         

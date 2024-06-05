@@ -439,12 +439,14 @@ class Impact:
         
         self.meshVXci = []
         self.meshVYci = []
-        
-        
-        
+
         self.SheetOpen = []
         self.wiXs = []
         self.wiYs = []
+
+        self.trajX = []
+        self.trajY = []
+        self.TrajT = []
         
         ## Drop volume fraction in the impact
         
@@ -694,6 +696,9 @@ class Impact:
         meshPts_X = ml.repmat(meshXci,len(Time),1)
         meshPts_Y = ml.repmat(meshYci,len(Time),1)
         
+        meshVel_X = ml.repmat(meshVXci,len(Time),1)
+        meshVel_Y = ml.repmat(meshVYci,len(Time),1)
+        
                 
         # meshPts_VX = ml.repmat(meshVXci,len(Time),1)
         # meshPts_VY = ml.repmat(meshVYci,len(Time),1)          
@@ -705,8 +710,8 @@ class Impact:
         
         for it in range(1,len(Time)):
             
-            meshPts_X[it,:] = meshPts_X[it-1,:] + meshVXci*(Time[it]-Time[it-1])
-            meshPts_Y[it,:] = meshPts_Y[it-1,:] + meshVYci*(Time[it]-Time[it-1])
+            meshPts_X[it,:] = meshPts_X[it-1,:] + meshVel_X[it-1,:]*(Time[it]-Time[it-1])
+            meshPts_Y[it,:] = meshPts_Y[it-1,:] + meshVel_Y[it-1,:]*(Time[it]-Time[it-1])
             
             out_mask = np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle
             
@@ -717,24 +722,26 @@ class Impact:
             Xco1,Yco1 = dgf.Circle2Cone(meshPts_X[it,:],meshPts_Y[it,:], self.Cone.Alpha, 0)
             
             
-            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVXci,meshVYci,Xco,Yco, self.Cone.Alpha)
+            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_X[it-1,:],meshVel_Y[it-1,:],Xco,Yco, self.Cone.Alpha)
             
             
             velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
             
             chgmask = np.multiply(velY_new,meshVYci) < 0
             
-            velX_new[chgmask] = meshVXci[chgmask]
-            velY_new[chgmask] = meshVYci[chgmask]
+            velX_new[chgmask] = meshVel_X[it-1,:][chgmask]
+            velY_new[chgmask] = meshVel_Y[it-1,:][chgmask]
             
             
-            meshVXci[out_mask] = velX_new[out_mask]
-            meshVYci[out_mask] = velY_new[out_mask]
+            meshVel_X[it,:][out_mask] = velX_new[out_mask]
+            meshVel_Y[it,:][out_mask] = velY_new[out_mask]
             
         
         trajX = meshPts_X
         trajY = meshPts_Y
 
+        self.trajVXci = meshVel_X
+        self.trajVXci = meshVel_Y
        
         T,r =  vf.ToCirc(trajX,trajY,angle='rad')
         
@@ -779,9 +786,13 @@ class Impact:
 
         trajX[badPts] = badX
         trajY[badPts] = badY 
+        
+        self.trajX = trajX
+        self.trajY = trajY
+        self.trajT = trajT
                        
         
-        return(trajX,trajY,trajT)
+        return(self.trajX,self.trajY,self.trajT)
     
     
     
@@ -881,7 +892,7 @@ class Impact:
         
         if self.SheetOpen == []:
     
-            trajX,trajY,trajT = self.compute_traj(np.linspace(0,50,500),velType)
+            trajX,trajY,trajT = self.compute_traj(np.linspace(0,10,50),velType)
             
             tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
             
@@ -912,6 +923,36 @@ class Impact:
         self.compute_SheetOpening(velType)
         
         return(self.SheetOpen,self.wiXs,self.wiYs)
+    
+    
+    def compute_ShapeFactor(self,velType):
+        
+        if self.trajX == []:
+            
+            self.compute_traj(np.linspace(0,10,50),velType)
+            
+        trajXco, trajYco = self.Cone.Circle2Cone(self.trajX, self.trajY)
+        
+        trajVXco,trajVYco =dgf.VelCircle2Cone(self.trajVXci, self.trajVYci, trajXco, trajYco, self.Cone.Alpha)
+
+            
+        jetmask = (trajXco < -self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*0.05) 
+        
+        sidemask = (trajYco > self.Cone.Rcone) & (np.abs(trajXco) < self.Cone.Rcone*0.05) 
+        
+        veljet = np.abs(np.mean(trajVYco[jetmask]))
+        
+        if np.sum(sidemask) == 0:
+            velside = 0
+        else:
+            velside = np.abs(np.mean(trajVXco[sidemask]))
+            
+        ShapeFactor = velside/veljet
+        
+        return(ShapeFactor)
+        
+        
+        
     
     def compute_JetNRJ(self,velType):
         
