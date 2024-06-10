@@ -437,8 +437,14 @@ class Impact:
         self.meshVXci_tan = []
         self.meshVYci_tan = []
         
+        self.meshVXci_tan_div0 = []
+        self.meshVYci_tan_div0 = []
+        
         self.meshVXci = []
         self.meshVYci = []
+        
+        self.meshVXci_div0= []
+        self.meshVYci_div0 = []
 
         self.SheetOpen = []
         self.wiXs = []
@@ -447,6 +453,11 @@ class Impact:
         self.trajX = []
         self.trajY = []
         self.TrajT = []
+        
+        self.JetFrac = []
+        
+        self.meshJFX = []
+        self.meshJFY = []
         
         ## Drop volume fraction in the impact
         
@@ -608,7 +619,7 @@ class Impact:
     
     def compute_velocity_ini(self):
         
-        if self.meshVXci == []:
+        if self.meshVXci_div0 == []:
     
             meshXci,meshYci,meshOXci,meshOYci = self.orientation() # Cone config, full drop       
 
@@ -644,52 +655,88 @@ class Impact:
             self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
             self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
             
+            
             self.meshVXci_div0 = self.meshVXci_norm + self.meshVXci_tan_div0
             self.meshVYci_div0 = self.meshVYci_norm + self.meshVYci_tan_div0
+            
+
+            fieldnormCi = np.sqrt(np.square(self.meshVXci)+np.square(self.meshVYci))
+            fieldnormCi_norm = np.sqrt(np.square(self.meshVXci_norm)+np.square(self.meshVYci_norm))
+            fieldnormCi_tan_div0 = np.sqrt(np.square(self.meshVXci_tan_div0)+np.square(self.meshVYci_tan_div0))
+            fieldnormCi_div0 = np.sqrt(np.square(self.meshVXci_div0)+np.square(self.meshVYci_div0))
+            
+            
+            
+            f,ax = plt.subplots(dpi=300)
+            f.suptitle('Velini_Full')
+            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci,fieldnormCi), np.divide(self.meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+            
+            f,ax = plt.subplots(dpi=300)
+            f.suptitle('Velini_Norm')
+            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_norm,fieldnormCi_norm), np.divide(self.meshVYci_norm,fieldnormCi_norm),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+            
+            f,ax = plt.subplots(dpi=300)
+            f.suptitle('Velini_Tan')
+            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_tan_div0,fieldnormCi_tan_div0), np.divide(self.meshVYci_tan_div0,fieldnormCi_tan_div0),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+            
+            f,ax = plt.subplots(dpi=300)
+            f.suptitle('Velini_Full_div0')
+            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_div0,fieldnormCi_div0), np.divide(self.meshVYci_div0,fieldnormCi_div0),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+            
+            
+            
         
         
     
-    def velocity_ini(self,veltype):
+    def velocity_ini(self,velType):
         
         self.compute_velocity_ini()
         
-        if veltype == 'norm':
-            
-            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_norm,self.meshVYci_norm, self.meshX, self.meshY, self.Cone.Alpha)
+        if velType == 'norm':
             
             return(self.meshXci,self.meshYci,self.meshVXci_norm,self.meshVYci_norm)
         
-        elif veltype == 'tan':
-            
-            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_tan,self.meshVYci_tan, self.meshX, self.meshY, self.Cone.Alpha)
-            
+        elif velType == 'tan':
+
             return(self.meshXci,self.meshYci,self.meshVXci_tan,self.meshVYci_tan)
         
-        elif veltype == 'tan_div0':
-            
-            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_tan_div0,self.meshVYci_tan_div0, self.meshX, self.meshY, self.Cone.Alpha)
-            
+        elif velType == 'tan_div0':
+
             return(self.meshXci,self.meshYci,self.meshVXci_tan_div0,self.meshVYci_tan_div0)
         
-        elif veltype == 'full':   
-            
-            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci,self.meshVYci, self.meshX, self.meshY, self.Cone.Alpha)         
-            
+        elif velType == 'full':   
+
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
         
-        elif veltype == 'full_div0': 
-            
-            self.meshVX,self.meshVY = dgf.VelCone2Circle(self.meshVXci_div0,self.meshVYci_div0, self.meshX, self.meshY, self.Cone.Alpha)           
-            
+        elif velType == 'full_div0': 
+
             return(self.meshXci,self.meshYci,self.meshVXci_div0,self.meshVYci_div0)
         
         
 
     
     
-    def compute_traj(self,Time,velType):
+    def compute_traj(self,Time):
        
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(velType)
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
+        
+        
+
+        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))
+        
+        
+        
+        f,ax = plt.subplots(dpi=300)
+        f.suptitle('Loaded_Velini_Full_div0')
+        ax.quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+        
+            
+        
                
         trajT = ml.repmat(Time,len(meshXci),1).T
         
@@ -727,7 +774,7 @@ class Impact:
             
             velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
             
-            chgmask = np.multiply(velY_new,meshVYci) < 0
+            chgmask = np.multiply(velX_new,meshVel_X[it-1,:]) < 0
             
             velX_new[chgmask] = meshVel_X[it-1,:][chgmask]
             velY_new[chgmask] = meshVel_Y[it-1,:][chgmask]
@@ -736,12 +783,23 @@ class Impact:
             meshVel_X[it,:][out_mask] = velX_new[out_mask]
             meshVel_Y[it,:][out_mask] = velY_new[out_mask]
             
+            fieldnormCi = np.sqrt(np.square(meshVel_X[it,:])+np.square(meshVel_Y[it,:]))
+            
+            
+            
+            f,ax = plt.subplots(dpi=300)
+            f.suptitle('T = ' + str(Time[it]) + '_Velini_Full_div0')
+            ax.quiver(meshXci, meshYci, np.divide(meshVel_X[it,:],fieldnormCi), np.divide(meshVel_Y[it,:],fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+
+            
+
+            
         
         trajX = meshPts_X
         trajY = meshPts_Y
 
         self.trajVXci = meshVel_X
-        self.trajVXci = meshVel_Y
+        self.trajVYci = meshVel_Y
        
         T,r =  vf.ToCirc(trajX,trajY,angle='rad')
         
@@ -768,7 +826,7 @@ class Impact:
         badIn = badR <= self.Cone.Rcircle
  
         
-        badOut = badR > self.Cone.Rcircle
+        # badOut = badR > self.Cone.Rcircle
         
         lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
         
@@ -799,9 +857,10 @@ class Impact:
     
     ## Volume fraction in the jet (in % of impacting volume)
     
-    def compute_JetFrac(self,veltype):
+    def compute_JetFrac(self):
         
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(veltype)
+        print('computeJF')
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
             
         # equations for the lines of the sector borders (y = c12*x)
         c1 = np.tan(np.pi-self.Cone.Beta/2)
@@ -880,19 +939,28 @@ class Impact:
         
         if (np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone)) | ((self.Drop.Rdrop-np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd)))>(self.Cone.Rcone)):
             JetFrac = 0
+            
+        self.JetFrac= JetFrac
         
-        return(JetFrac)
     
+    def get_JetFrac(self):
+        
+        if self.JetFrac == []:
+             self.compute_JetFrac()    
             
             
+        
+        return(self.JetFrac)
+             
+             
     
     # Sheet opening
     
-    def compute_SheetOpening(self,velType):
+    def compute_SheetOpening(self):
         
         if self.SheetOpen == []:
     
-            trajX,trajY,trajT = self.compute_traj(np.linspace(0,10,50),velType)
+            trajX,trajY,trajT = self.compute_traj(np.linspace(0,5,50),'full_div0')
             
             tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
             
@@ -918,34 +986,49 @@ class Impact:
                 self.wiXs = np.nan
                 self.wiYs = np.nan
                 
-    def SheetOpening(self,velType):
+    def SheetOpening(self):
         
-        self.compute_SheetOpening(velType)
+        self.compute_SheetOpening()
         
         return(self.SheetOpen,self.wiXs,self.wiYs)
     
     
-    def compute_ShapeFactor(self,velType):
+    def compute_ShapeFactor(self):
         
         if self.trajX == []:
             
-            self.compute_traj(np.linspace(0,10,50),velType)
+            self.compute_traj(np.linspace(0,5,50))
             
         trajXco, trajYco = self.Cone.Circle2Cone(self.trajX, self.trajY)
         
         trajVXco,trajVYco =dgf.VelCircle2Cone(self.trajVXci, self.trajVYci, trajXco, trajYco, self.Cone.Alpha)
-
-            
+        
+                    
         jetmask = (trajXco < -self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*0.05) 
+        
+        # print(np.sum(jetmask))
         
         sidemask = (trajYco > self.Cone.Rcone) & (np.abs(trajXco) < self.Cone.Rcone*0.05) 
         
-        veljet = np.abs(np.mean(trajVYco[jetmask]))
+        
+        self.plot_splash_traj(np.linspace(0,5,50))
+        self.plot_splash_init()
+        
+        f,ax = plt.subplots(dpi=100)
+        ax.plot(trajXco,trajYco,'ob')
+        ax.plot(trajXco[jetmask],trajYco[jetmask],'or')
+        ax.plot(trajXco[sidemask],trajYco[sidemask],'og')
+        
+        ax.set_aspect('equal')
+        
+        plt.show()
+        
+        veljet = np.abs(np.max(trajVYco[jetmask]))
         
         if np.sum(sidemask) == 0:
             velside = 0
         else:
-            velside = np.abs(np.mean(trajVXco[sidemask]))
+            velside = np.abs(np.max(trajVXco[sidemask]))
             
         ShapeFactor = velside/veljet
         
@@ -954,7 +1037,7 @@ class Impact:
         
         
     
-    def compute_JetNRJ(self,velType):
+    def compute_JetNRJ(self):
         
         rho = 997e-9 # [kg/mm3]
         
@@ -963,7 +1046,7 @@ class Impact:
             Veq2 = np.average((np.square(self.meshJFVx)+np.square(self.meshJFVy)), weights=self.meshJH)
             # Weighted average of trajectories squared velocities by thickness
     
-            self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.compute_JetFrac(velType)/100
+            self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.get_JetFrac()/100
             self.JetNRJ_Bal = self.JetNRJ*np.sin(2*(np.pi/2-self.Cone.Alpha))
         
         else:
@@ -973,7 +1056,7 @@ class Impact:
         
         return(self.JetNRJ,self.JetNRJ_Bal)
     
-    def compute_DispertionDist(self,velType):
+    def compute_DispertionDist(self):
         
         g = 9.81*1e-3 # in [mm.ms-2]
         
@@ -1000,7 +1083,7 @@ class Impact:
     #                                                                             #
     ###############################################################################
     
-    def plot_splash_init(self,**kwargs):
+    def plot_splash_init(self,velType,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -1008,7 +1091,6 @@ class Impact:
         Xlabel_Co = 'kw: xlabelCo= ''My xlabel for the cone config'''
         Ylabel_Co = 'kw: ylabelCo= ''My ylabel for the cone config'''
         NoLabels  = False
-        VelType = 'full'
         
         ConeColor = 'g'
         ConeLW = 1
@@ -1035,15 +1117,14 @@ class Impact:
                 ConeColor = value
             elif key == 'conelinewidth':
                 ConeLW = value
-            elif key == 'veltype':
-                VelType = value
 
                     
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
         
        
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
+        print('plotsplashinit')
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(velType)
 
         fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))
  
@@ -1057,166 +1138,28 @@ class Impact:
     
         
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,
-                                 conecolor=ConeColor,title= Title + '_' + VelType,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                 conecolor=ConeColor,title= Title + '_' + velType,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
         
-
-        self.compute_JetFrac(VelType)
-        ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
-        ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
         
-        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
+        
+        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 10,zorder=6,headlength=18,headaxislength=16)
         q1 = ax[1].quiver(meshX,   meshY,   np.divide(meshVX,fieldnorm),     np.divide(meshVY,fieldnorm),    fieldnorm,  scale = 15,zorder=6,headlength=18,headaxislength=16)
 
         ax[0].plot(self.oriX,self.oriY,'*m',ms = 10,zorder=7)
         ax[1].plot(self.oriX*np.sin(self.Cone.Alpha),self.oriY,'*m',ms = 10,zorder=7)
         
+        print('computejetfracforinipts')
+        if self.meshJFX == []:
+            self.compute_JetFrac(velType)
+        ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
+        ax[1].scatter(self.meshJFx,self.meshJFy,c='r',zorder=5,s=7)
+        
         fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'Velocity')
         fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'Velocity')
     
-    def plot_div(self,**kwargs):
-        
-        Title     = 'kw: title= ''My title for the figure'''
-        VelType = 'full'
-        
-        ConeColor = 'g'
-        ConeLW = 1
-        
-        
-        
-        for key, value in kwargs.items(): 
-            if key == 'title':
-                Title = value
-            elif key == 'conecolor':
-                ConeColor = value
-            elif key == 'conelinewidth':
-                ConeLW = value
-            elif key == 'veltype':
-                VelType = value
-
-                    
-            else:
-                print('Unknown key : ' + key + '. Kwarg ignored.')
-        
-       
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(VelType)
-        
-        meshX,meshY = self.Drop.meshX,self.Drop.meshY
-        Xgrid,Ygrid = self.Drop.meshXFull,self.Drop.meshYFull
-        
-        Xgridci,Ygridci = self.Cone.Cone2Circle(Xgrid,Ygrid)
-        
-        VXgridci = np.zeros(np.shape(Xgrid))
-        # VXgridci[:] = np.nan
-        VYgridci = np.zeros(np.shape(Xgrid))
-        # VYgridci[:] = np.nan
-        
-        
-        Maskgridci = np.zeros(np.shape(Xgrid))
-        
-        
-        for pos,vx,vy in zip([np.argwhere((Xgrid == x)&(Ygrid == y)) for x,y in zip(meshX,meshY)],meshVXci,meshVYci):
     
-            VXgridci[pos[0][0],pos[0][1]] = vx
-            VYgridci[pos[0][0],pos[0][1]] = vy
-            Maskgridci[pos[0][0],pos[0][1]] = 1
-         
-            
-         # HgradInterp_x = LinearNDInterpolator(list(zip(Xgrid.flatten(),Ygrid.flatten())),Hgrad_x.flatten())
-        
-        dVXci = np.gradient(VXgridci, axis=1)[Maskgridci.astype(bool)]
-        dVYci = np.gradient(VXgridci, axis=0)[Maskgridci.astype(bool)]
-        divci = dVXci+dVYci
-        
-        fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))        
-        
-        meshX, meshY = self.Cone.Circle2Cone(meshXci, meshYci)
-        
-        meshVX, meshVY = self.Cone.Circle2Cone(meshVXci+meshXci, meshVYci+meshYci)
-        
-        meshVX = meshVX - meshX
-        meshVY = meshVY - meshY
-
-        
-        ### An abscisse vector
-                
-        tx = np.linspace(0,2*np.pi,100)
-        
-        ### Circle config : removed sector to form a cone 
-                
-        T1 = np.pi-self.Cone.Beta/2
-        T2 = np.pi+self.Cone.Beta/2
-        
-        if T1>T2:
-            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
-        else:                
-            Ts = np.linspace(T1,T2,20)
-        
-        sectorT = np.append(np.append([T1],Ts),[T2])
-        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
-        
-        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
-        
-        ### Adding the drop 
-
-        Xdrop,Ydrop = self.Drop.Coordinates() # in cone config
-            
-        Rd = self.Drop.Parameters()[0]               
     
-        ### Anaytical drop equation in circle config
-        
-        if Xdrop > Rd:
-            ThetaBorder = np.sin(self.Cone.Alpha)*np.arcsin(Rd/Xdrop)
-            Theta = np.linspace(-ThetaBorder,ThetaBorder,200)
-            R1 = (Xdrop*np.cos(np.divide(Theta,np.sin(self.Cone.Alpha))) - np.sqrt(Rd**2-Xdrop**2*np.sin(np.divide(Theta,np.sin(self.Cone.Alpha)))**2))/(np.sin(self.Cone.Alpha))
-            R2 = (Xdrop*np.cos(np.divide(Theta,np.sin(self.Cone.Alpha))) + np.sqrt(Rd**2-Xdrop**2*np.sin(np.divide(Theta,np.sin(self.Cone.Alpha)))**2))/(np.sin(self.Cone.Alpha))
-            Theta = np.concatenate((Theta, np.flip(Theta)))
-            R = np.concatenate((R1, R2))
-        else:
-            ThetaBorder = np.pi - self.Cone.Beta/2
-            Theta = np.linspace(-ThetaBorder,ThetaBorder,200)
-            R = (Xdrop*np.cos(np.divide(Theta,np.sin(self.Cone.Alpha))) + np.sqrt(Rd**2-Xdrop**2*np.sin(np.divide(Theta,np.sin(self.Cone.Alpha)))**2))/(np.sin(self.Cone.Alpha))
-        
-        
-        X,Y = vf.ToCart(Theta,R, angle = 'rad')
-
-        
-        ### Plotting
-        
-        fig,ax = plt.subplots(dpi = 250, ncols = 3, figsize = (9,5))
-        
-        fig.suptitle(Title)
-        ax[0].set_title('dVx/dx')
-        ax[1].set_title('dVy/dy')
-        ax[2].set_title('div(V)')
-
-        
-        for axx in ax:
-            
-            axx.set_aspect('equal')
-            
-            axx.set_xticks([])
-            axx.set_yticks([])
-            
-            axx.plot(0,0,'g*',ms = 3)
-            axx.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = ConeColor, lw=ConeLW,label = 'Cone',zorder=1);
-            axx.plot(sectorX,sectorY,'--r',lw=1, label = 'Removed sector',zorder=2)
-
-        
-        
-        q0 = ax[0].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),dVXci,scale = 20,zorder=5,headlength=18,headaxislength=16)
-
-        q1 = ax[1].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),dVYci,scale = 20,zorder=5,headlength=18,headaxislength=16)
-
-        q2 = ax[2].quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),divci,scale = 20,zorder=5,headlength=18,headaxislength=16)
-
-        fig.colorbar(q0, ax = ax[0],orientation='horizontal',label = 'dVx/dx')
-        fig.colorbar(q1, ax = ax[1],orientation='horizontal',label = 'dVy/dy')
-        fig.colorbar(q2, ax = ax[2],orientation='horizontal',label = 'Div(V)')
-        
-        fig.tight_layout()
-        
-    
-    def plot_splash_traj(self,Time,velType,**kwargs):
+    def plot_splash_traj(self,Time,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -1256,18 +1199,20 @@ class Impact:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
                 
          
-       
+        print('computeJFforlegend')
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
-                                 conecolor=ConeColor,title='JetFrac = ' + str(self.compute_JetFrac(velType)) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                 conecolor=ConeColor,title='JetFrac = ' + str(self.get_JetFrac()) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
            
-                    
-        trajX,trajY,trajT = self.compute_traj(Time,velType)
+        print('compute_Traj for plot')
+        trajX,trajY,trajT = self.compute_traj(Time)
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
         order = np.argsort(trajT.flatten())
 
         
+        
+
         sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)   
         ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time')
@@ -1284,7 +1229,7 @@ class Impact:
     
         return    
     
-    def plot_splash_movie(self,Time,velType,label,xlims,ylims,**kwargs):
+    def plot_splash_movie(self,Time,label,xlims,ylims,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -1327,7 +1272,7 @@ class Impact:
          
         os.makedirs(savepath,exist_ok=True)
         
-        trajX,trajY,trajT = self.compute_traj(Time,velType)
+        trajX,trajY,trajT = self.compute_traj(Time)
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
         
@@ -1341,7 +1286,7 @@ class Impact:
         for T,iT in zip(timevect,range(len(timevect))):
             
             fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
-                                     conecolor=ConeColor,title='JetFrac = ' + str(self.compute_JetFrac(velType)) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                     conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
             
             
             
@@ -1383,8 +1328,8 @@ class Impact:
                     
                 
                 
-                ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1)
-                ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1)
+                ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
+                ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
                 
             ax[1].set_xlim(xlims)
             ax[1].set_ylim(ylims)
