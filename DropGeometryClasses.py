@@ -16,6 +16,9 @@ import VallapFunc_DP as vf
 
 import time as time
 
+from IPython import get_ipython
+get_ipython().run_line_magic('matplotlib', 'inline')
+
 import os
 
 
@@ -459,6 +462,17 @@ class Impact:
         self.meshJFX = []
         self.meshJFY = []
         
+        meshX,meshY,meshH = self.Drop.mesh() # Cone config
+        
+        InCone = np.sqrt(np.square(meshX) + np.square(meshY))<self.Cone.Rcone
+        
+        self.meshX = meshX[InCone]
+        self.meshY = meshY[InCone]
+        self.meshH = meshH[InCone]
+        
+        self.meshZmin = np.max(self.meshH/2)-self.meshH/2
+        self.meshZmax = self.meshZmin + self.meshH
+        
         ## Drop volume fraction in the impact
         
         self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone) 
@@ -478,13 +492,7 @@ class Impact:
         
         if self.ori == []:
             
-            meshX,meshY,meshH = self.Drop.mesh() # Cone config
             
-            InCone = np.sqrt(np.square(meshX) + np.square(meshY))<self.Cone.Rcone
-            
-            self.meshX = meshX[InCone]
-            self.meshY = meshY[InCone]
-            self.meshH = meshH[InCone]
             
             meshXci,meshYci = self.Cone.Cone2Circle(self.meshX, self.meshY) 
             
@@ -660,37 +668,6 @@ class Impact:
             self.meshVYci_div0 = self.meshVYci_norm + self.meshVYci_tan_div0
             
 
-            fieldnormCi = np.sqrt(np.square(self.meshVXci)+np.square(self.meshVYci))
-            fieldnormCi_norm = np.sqrt(np.square(self.meshVXci_norm)+np.square(self.meshVYci_norm))
-            fieldnormCi_tan_div0 = np.sqrt(np.square(self.meshVXci_tan_div0)+np.square(self.meshVYci_tan_div0))
-            fieldnormCi_div0 = np.sqrt(np.square(self.meshVXci_div0)+np.square(self.meshVYci_div0))
-            
-            
-            
-            f,ax = plt.subplots(dpi=300)
-            f.suptitle('Velini_Full')
-            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci,fieldnormCi), np.divide(self.meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
-            
-            f,ax = plt.subplots(dpi=300)
-            f.suptitle('Velini_Norm')
-            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_norm,fieldnormCi_norm), np.divide(self.meshVYci_norm,fieldnormCi_norm),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
-            
-            f,ax = plt.subplots(dpi=300)
-            f.suptitle('Velini_Tan')
-            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_tan_div0,fieldnormCi_tan_div0), np.divide(self.meshVYci_tan_div0,fieldnormCi_tan_div0),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
-            
-            f,ax = plt.subplots(dpi=300)
-            f.suptitle('Velini_Full_div0')
-            ax.quiver(meshXci, meshYci, np.divide(self.meshVXci_div0,fieldnormCi_div0), np.divide(self.meshVYci_div0,fieldnormCi_div0),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
-            
-            
-            
-        
-        
     
     def velocity_ini(self,velType):
         
@@ -727,14 +704,6 @@ class Impact:
         
 
         fieldnormCi = np.sqrt(np.square(meshVXci)+np.square(meshVYci))
-        
-        
-        
-        f,ax = plt.subplots(dpi=300)
-        f.suptitle('Loaded_Velini_Full_div0')
-        ax.quiver(meshXci, meshYci, np.divide(meshVXci,fieldnormCi), np.divide(meshVYci,fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
-        
             
         
                
@@ -784,13 +753,6 @@ class Impact:
             meshVel_Y[it,:][out_mask] = velY_new[out_mask]
             
             fieldnormCi = np.sqrt(np.square(meshVel_X[it,:])+np.square(meshVel_Y[it,:]))
-            
-            
-            
-            f,ax = plt.subplots(dpi=300)
-            f.suptitle('T = ' + str(Time[it]) + '_Velini_Full_div0')
-            ax.quiver(meshXci, meshYci, np.divide(meshVel_X[it,:],fieldnormCi), np.divide(meshVel_Y[it,:],fieldnormCi),fieldnormCi,scale = 20,zorder=6,headlength=18,headaxislength=16)
-
             
 
             
@@ -859,7 +821,6 @@ class Impact:
     
     def compute_JetFrac(self):
         
-        print('computeJF')
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
             
         # equations for the lines of the sector borders (y = c12*x)
@@ -917,8 +878,8 @@ class Impact:
         self.meshJFx = self.meshX[inter]
         self.meshJFy = self.meshY[inter]
         
-        VXproj = self.meshVXci_div0
-        VYproj = self.meshVYci_div0
+        VXproj = self.meshVXci_div0.copy()
+        VYproj = self.meshVYci_div0.copy()
         
         
         VXproj[inter1] = VXproj[inter1]*cos1[inter1]
@@ -960,7 +921,7 @@ class Impact:
         
         if self.SheetOpen == []:
     
-            trajX,trajY,trajT = self.compute_traj(np.linspace(0,5,50),'full_div0')
+            trajX,trajY,trajT = self.compute_traj(np.linspace(0,5,50))
             
             tT,tR = vf.ToCirc(trajX,trajY, angle='rad')
             
@@ -993,44 +954,109 @@ class Impact:
         return(self.SheetOpen,self.wiXs,self.wiYs)
     
     
-    def compute_ShapeFactor(self):
+    def compute_ShapeFactor(self,Time,boxsize):
         
         if self.trajX == []:
             
-            self.compute_traj(np.linspace(0,5,50))
+            self.compute_traj(Time)
             
         trajXco, trajYco = self.Cone.Circle2Cone(self.trajX, self.trajY)
         
         trajVXco,trajVYco =dgf.VelCircle2Cone(self.trajVXci, self.trajVYci, trajXco, trajYco, self.Cone.Alpha)
         
                     
-        jetmask = (trajXco < -self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*0.05) 
+        jetmask = (trajXco < -self.Cone.Rcone) & (trajXco > -(1+boxsize)*self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*boxsize/2) 
         
         # print(np.sum(jetmask))
         
-        sidemask = (trajYco > self.Cone.Rcone) & (np.abs(trajXco) < self.Cone.Rcone*0.05) 
+        sidemask = (trajYco > self.Cone.Rcone) & (trajYco < (1+boxsize)*self.Cone.Rcone) & (np.abs(trajXco) < self.Cone.Rcone*boxsize/2) 
         
         
-        self.plot_splash_traj(np.linspace(0,5,50))
-        self.plot_splash_init()
+        # fig, ax = self.Cone.draw(conelinewidth=2, conecolor='g')
         
-        f,ax = plt.subplots(dpi=100)
-        ax.plot(trajXco,trajYco,'ob')
-        ax.plot(trajXco[jetmask],trajYco[jetmask],'or')
-        ax.plot(trajXco[sidemask],trajYco[sidemask],'og')
+        # ax[1].plot(trajXco,trajYco,'ob',ms=1,zorder=0)
+        # ax[1].plot(trajXco[jetmask],trajYco[jetmask],'or',ms=3,zorder=5)
+        # ax[1].plot(trajXco[sidemask],trajYco[sidemask],'og',ms=3,zorder=5)
         
-        ax.set_aspect('equal')
+        # ax[1].set_aspect('equal')
         
-        plt.show()
+        # plt.show()
         
-        veljet = np.abs(np.max(trajVYco[jetmask]))
+        velsjetP = np.abs(trajVXco[jetmask])
+        
+        Tsjet = self.trajT[jetmask]
+        
+        Tsjoint = self.trajT[jetmask|sidemask]
         
         if np.sum(sidemask) == 0:
-            velside = 0
-        else:
-            velside = np.abs(np.max(trajVXco[sidemask]))
             
-        ShapeFactor = velside/veljet
+            velssideP = np.zeros(np.shape(trajVYco[jetmask]))
+            Tsside = self.trajT[jetmask]
+        else:
+            velssideP = np.abs(trajVYco[sidemask])
+            Tsside = self.trajT[sidemask]
+            
+                       
+        velssidePmean = np.zeros(np.shape(np.unique(Tsjoint)))
+        for i in np.unique(Tsside):
+            tmp = np.where(Tsside == i)
+            tmp2 = np.where(np.unique(Tsjoint) == i)
+            velssidePmean[tmp2] = np.nanmean(velssideP[tmp])           
+            
+        velsjetPmean = np.zeros(np.shape(np.unique(Tsjoint)))    
+        for i in np.unique(Tsjet):
+            tmp = np.where(Tsjet == i)
+            tmp2 = np.where(np.unique(Tsjoint) == i)
+            velsjetPmean[tmp2] = np.nanmean(velsjetP[tmp])
+            
+            
+        
+        
+        # f, ax = plt.subplots(dpi=200)
+        # ax.plot(Tsside,velssideP,'or',ms=4,label='Side velocity // Y')
+        # ax.plot(np.unique(Tsjoint),velssidePmean,'o-m',ms=4,label='Mean side velocity // Y')
+        # ax.plot(Tsjet,velsjetP,'ob',ms=4,label = 'Jet velocity // X')
+        # ax.plot(np.unique(Tsjoint),velsjetPmean,'o-c',ms=4,label = 'Mean jet velocity // X')
+        # plt.legend()
+        
+        # ax.set_xlabel('Time (ms)')
+        # ax.set_ylabel('Projected velocity (m/s)')
+        
+        # f.tight_layout()
+        
+        # f, ax = plt.subplots(dpi=200)
+        # ax.plot(Tsside,velsside,'or',ms=4,label='Side velocity // Y')
+        # ax.plot(Tsjet,velsjet,'ob',ms=4,label = 'Jet velocity // X')
+        # ax.plot(Tsjet,velsjet,'ob',ms=4,label = 'Jet velocity // X')
+        # plt.legend()
+        
+        # ax.set_xlabel('Time (ms)')
+        # ax.set_ylabel('Velocity (m/s)')
+        
+        # f.tight_layout()
+        
+        OKmask = (velsjetPmean > 0) & (velssidePmean > 0)
+        
+        # Tok = np.unique(Tsjoint)[OKmask]
+        
+        # f, ax = plt.subplots(dpi=200)
+        # ax.plot(Tok,np.divide(velssidePmean[OKmask],velsjetPmean[OKmask]),'og',ms=4,label='Side/Jet velocities')
+        # plt.legend()
+        
+        # ax.set_xlabel('Time (ms)')
+        # ax.set_ylabel('Relative projected velocity')
+        
+        # f.tight_layout()
+        
+         
+        
+        # veljet = np.mean(velsjet)
+        
+        # velside = np.mean(velsside)
+        
+        # ShapeFactor = velside/veljet
+        
+        ShapeFactor = np.mean(np.divide(velssidePmean[OKmask],velsjetPmean[OKmask]))
         
         return(ShapeFactor)
         
@@ -1147,8 +1173,7 @@ class Impact:
 
         ax[0].plot(self.oriX,self.oriY,'*m',ms = 10,zorder=7)
         ax[1].plot(self.oriX*np.sin(self.Cone.Alpha),self.oriY,'*m',ms = 10,zorder=7)
-        
-        print('computejetfracforinipts')
+
         if self.meshJFX == []:
             self.compute_JetFrac(velType)
         ax[0].scatter(self.meshJFxci,self.meshJFyci,c='r',zorder=5,s=7)
@@ -1198,36 +1223,90 @@ class Impact:
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
                 
-         
-        print('computeJFforlegend')
+
+
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
-                                 conecolor=ConeColor,title='JetFrac = ' + str(self.get_JetFrac()) + '. '+ Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
+                                 conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
            
-        print('compute_Traj for plot')
+
         trajX,trajY,trajT = self.compute_traj(Time)
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
         order = np.argsort(trajT.flatten())
-
+        
+        trajVci = np.sqrt(np.square(self.trajVXci)+ np.square(self.trajVYci))
+        
+        trajVXco,trajVYco =dgf.VelCircle2Cone(self.trajVXci, self.trajVYci, trajXco, trajYco, self.Cone.Alpha)
         
         
+        trajVco = np.sqrt(np.square(trajVXco)+ np.square(trajVYco))
+        
 
-        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)   
+        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajVci.flatten()[order],cmap = 'Reds',s=1,zorder = -1)   
         ax[0].set_box_aspect(1)
-        fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Time')
+        fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Velocity')
         
-        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajT.flatten()[order],cmap = 'cividis',s=2,zorder = -1)
+        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajVco.flatten()[order],cmap = 'Reds',zorder = -1)
         
         
         ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits',zorder=4)
 
-        fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Time')
+        fig.colorbar(sc1, ax = ax[1],orientation='horizontal',label = 'Velocity')
         
         
             
     
         return    
+    
+    
+    
+     
+    def plot_3Dview(self):
+        
+        get_ipython().run_line_magic('matplotlib', 'qt')
+        fig = plt.figure()
+        ax0 = fig.add_subplot(121, projection='3d')
+        ax0.set_title('Circle config')
+        ax1 = fig.add_subplot(122, projection='3d')
+        ax1.set_title('Cone config')
+        
+        tx = np.linspace(0,2*np.pi,30)
+        
+        ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone*np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
+        ax1.scatter(self.meshX,self.meshY,self.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='w')
+        ax1.scatter(self.meshX,self.meshY,self.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='r')
+        
+        for t in tx:
+            ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone*np.tan(self.Cone.Alpha)],'g-')
+        
+        
+        ### Circle config : removed sector to form a cone 
+                
+        T1 = np.pi-self.Cone.Beta/2
+        T2 = np.pi+self.Cone.Beta/2
+        
+        if T1>T2:
+            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
+        else:                
+            Ts = np.linspace(T1,T2,20)
+        
+        sectorT = np.append(np.append([T1],Ts),[T2])
+        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
+        
+        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
+        
+        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
+        ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
+        Xi,Yi,Zi1 = dgf.Cone2CircleZ(self.meshX,self.meshY,self.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),self.Cone.Alpha)
+        ax0.scatter(Xi,Yi,Zi1,color='w')
+        Xi,Yi,Zi2 = dgf.Cone2CircleZ(self.meshX,self.meshY,self.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),self.Cone.Alpha)
+        ax0.scatter(Xi,Yi,Zi2,color='r')
+        
+        ax0.set_aspect('equal')
+        ax1.set_aspect('equal')
+        
+        
     
     def plot_splash_movie(self,Time,label,xlims,ylims,**kwargs):
         

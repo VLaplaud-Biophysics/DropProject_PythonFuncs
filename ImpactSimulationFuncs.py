@@ -219,12 +219,12 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 
                 Cone = dgc.Cone(ConeDiam/2,a)    
                 
-                print('\nAngle')
-                print(a/np.pi*180)
-                print('DropDiam')
-                print(dd/Normalisation)
-                print('Offcentering')
-                print(oc/Normalisation*2)
+                # print('\nAngle')
+                # print(a/np.pi*180)
+                # print('DropDiam')
+                # print(dd/Normalisation)
+                # print('Offcentering')
+                # print(oc/Normalisation*2)
                 
                 Drop = dgc.Drop(dd/2,oc,71,DropSpeed) # ~5000 points in the drop
                 Impact = Cone.impact(Drop,oriType,velIni,meshType)
@@ -236,7 +236,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[0] 
                 DispertionDist_Var[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[1] 
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
-                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor()
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(np.linspace(0,5,50),0.2)
                 
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()/100*Drop.Mass
                 
@@ -357,7 +357,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax2.set_xlabel('Offcent' + NormStr)
         ax2.set_ylabel('DropDiam' + NormStr)
         
-        sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=ShapeFactor[:,ia,:],vmin=0, 
+        sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=ShapeFactor[:,ia,:],vmin=0,vmax=1,
                           cmap='jet',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
@@ -726,7 +726,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         # sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
         
         sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=ShapeFactor[:,:,ioc],vmin=0,vmax =1,
-                          cmap='cividis',s=pointSize,marker='s')
+                          cmap='jet',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
         cbar2.set_label('Shape Factor')

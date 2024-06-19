@@ -64,6 +64,32 @@ def Circle2Cone(X,Y,Alpha,Ad):
     
     return(Xnew,Ynew)
 
+def Cone2CircleZ(X,Y,Z,Alpha):
+    # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
+    
+    A,R = vf.ToCirc(X,Y,angle = 'rad')
+    
+    R1 = Z*np.sin(Alpha)*np.cos(Alpha) + R*np.square(np.sin(Alpha))
+    
+    X1,Y1 = vf.ToCart(A, R1, angle = 'rad')
+    
+    Xnew,Ynew = Cone2Circle(X1,Y1,Alpha,0)
+    
+    Znew = (Z-R)*np.sin(Alpha)
+
+    return(Xnew,Ynew,Znew)
+
+# def Circle2ConeZ(X,Y,Z,Alpha): 
+#     # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
+    
+#     Xnew,Ynew = Circle2Cone(X,Y,Alpha,0)
+            
+#     A,R = vf.ToCirc(X,Y,angle = 'rad')
+#     Znew = Z + np.divide(R,np.tan(Alpha))
+    
+#     return(Xnew,Ynew,Znew)
+    
+
 
 def VelCone2Circle(VX,VY,X,Y,Alpha):
     # (VX,VY) velocities to transform, X,Y origin of the velovcity vector, Alpha angle of the cone
