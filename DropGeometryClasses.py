@@ -967,8 +967,6 @@ class Impact:
                     
         jetmask = (trajXco < -self.Cone.Rcone) & (trajXco > -(1+boxsize)*self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*boxsize/2) 
         
-        # print(np.sum(jetmask))
-        
         sidemask = (trajYco > self.Cone.Rcone) & (trajYco < (1+boxsize)*self.Cone.Rcone) & (np.abs(trajXco) < self.Cone.Rcone*boxsize/2) 
         
         
@@ -1055,8 +1053,11 @@ class Impact:
         # velside = np.mean(velsside)
         
         # ShapeFactor = velside/veljet
-        
-        ShapeFactor = np.mean(np.divide(velssidePmean[OKmask],velsjetPmean[OKmask]))
+
+        if np.sum(OKmask) == 0:
+            ShapeFactor = 0
+        else:    
+            ShapeFactor = np.nanmean(np.divide(velssidePmean[OKmask],velsjetPmean[OKmask]))
         
         return(ShapeFactor)
         

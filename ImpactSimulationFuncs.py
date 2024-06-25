@@ -185,8 +185,6 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ShapeFactor = np.load(savepath + '\Data_ShapeFactor_' + str(npts) + 'npts.npy')
         DispertionDist = np.load(savepath + '\Data_DispertionDist_' + str(npts) + 'npts.npy')   
         DispertionDist_Var = np.load(savepath + '\Data_DispertionDist_Var_' + str(npts) + 'npts.npy') 
-        
-    
 
         print('Done !')
          
@@ -236,7 +234,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[0] 
                 DispertionDist_Var[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[1] 
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
-                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(np.linspace(0,5,50),0.2)
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(np.linspace(0,10,50),0.2)
                 
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()/100*Drop.Mass
                 
@@ -269,6 +267,51 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     
     pointSize = 250000/npts**2  
                 
+    ########### Maximums by angle    ###########
+    
+    JFAnglesMaxes = np.nanmax(JetFracs,axis=(0,2))
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum jet fraction per angle')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Max jetFrac (%)')
+    axa.plot(Angles/(2*np.pi)*360,JFAnglesMaxes,'-ob',ms = 2,lw = 1.5)
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_JetFrac.png')
+
+    plt.close(fa)
+    
+    
+    
+    DDAnglesMaxes = np.nanmax(DispertionDist/1000,axis=(0,2))
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum dispertion distance per angle')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Max dispertion (m)')
+    axa.plot(Angles/(2*np.pi)*360,DDAnglesMaxes,'-or',ms = 2,lw = 1.5)
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_DispDist.png')
+
+    plt.close(fa)
+    
+    JNRJAnglesMaxes = np.nanmax(JetNRJ,axis=(0,2))
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum kinetic energy per angle')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Max energy')
+    axa.plot(Angles/(2*np.pi)*360,JNRJAnglesMaxes,'-ow',ms = 2,lw = 1.5)
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_JetNRJ.png')
+
+    plt.close(fa)
     
     ########### Fixed angle diagrams ###########       
 
@@ -280,6 +323,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax0.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
         ax0.set_xlabel('Offcent' + NormStr)
         ax0.set_ylabel('DropDiam' + NormStr)
+        
+        ax0.set_xlim([0,np.max(RelOffCents)])
+        ax0.set_ylim([0,np.max(RelDropDiams)])
     
 
         sc0 = ax0.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=JetFracs[:,ia,:],vmin=0, vmax = 100,
@@ -291,14 +337,14 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         # ax0.set_aspect('equal')
         
 
-        
-        
         f0.tight_layout()
         
         f0.savefig(savepath + '\JetFrac\FixedAngle\FxdADgm_'
                     + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_JetFrac.png')
 
         plt.close(f0)
+        
+
         
         
         print('Making and saving figures     ',end='\r')
@@ -308,6 +354,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax1.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
         ax1.set_xlabel('Offcent' + NormStr)
         ax1.set_ylabel('DropDiam' + NormStr)
+        
+        ax1.set_xlim([0,np.max(RelOffCents)])
+        ax1.set_ylim([0,np.max(RelDropDiams)])
         
         
         # sc1 = ax1.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=np.divide(np.subtract(100,JetFracs[:,ia,:]),JetFracs[:,ia,:])
@@ -337,6 +386,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax2.set_xlabel('Offcent' + NormStr)
         ax2.set_ylabel('DropDiam' + NormStr)
         
+        ax2.set_xlim([0,np.max(RelOffCents)])
+        ax2.set_ylim([0,np.max(RelDropDiams)])
+        
         sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=SheetWide[:,ia,:]*360/(2*np.pi),vmin=0, vmax = 360,
                           cmap='cividis',s=pointSize,marker='s')
         
@@ -357,8 +409,11 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax2.set_xlabel('Offcent' + NormStr)
         ax2.set_ylabel('DropDiam' + NormStr)
         
+        ax2.set_xlim([0,np.max(RelOffCents)])
+        ax2.set_ylim([0,np.max(RelDropDiams)])
+        
         sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=ShapeFactor[:,ia,:],vmin=0,vmax=1,
-                          cmap='jet',s=pointSize,marker='s')
+                          cmap='Blues_r',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
         cbar2.set_label('Shape factor')
@@ -379,6 +434,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_xlabel('Offcent' + NormStr)
         ax3.set_ylabel('DropDiam' + NormStr)
         
+        ax3.set_xlim([0,np.max(RelOffCents)])
+        ax3.set_ylim([0,np.max(RelDropDiams)])
+        
         sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=DispertionDist[:,ia,:]/1000,vmin=0, cmap='inferno',s=pointSize,marker='s')
         
         cbar3 = plt.colorbar(sc3)
@@ -395,6 +453,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
         ax3.set_xlabel('Offcent' + NormStr)
         ax3.set_ylabel('DropDiam' + NormStr)
+        
+        ax3.set_xlim([0,np.max(RelOffCents)])
+        ax3.set_ylim([0,np.max(RelDropDiams)])
 
         sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=DispertionDist_Var[:,ia,:]/1000,cmap='plasma',
                           s=pointSize,marker='s')
@@ -417,6 +478,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
         ax3.set_xlabel('Offcent' + NormStr)
         ax3.set_ylabel('DropDiam' + NormStr)
+        
+        ax3.set_xlim([0,np.max(RelOffCents)])
+        ax3.set_ylim([0,np.max(RelDropDiams)])
 
         sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=JetNRJ[:,ia,:],cmap='rainbow',
                           s=pointSize,marker='s')
@@ -437,6 +501,9 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
         ax3.set_xlabel('Offcent' + NormStr)
         ax3.set_ylabel('DropDiam' + NormStr)
+        
+        ax3.set_xlim([0,np.max(RelOffCents)])
+        ax3.set_ylim([0,np.max(RelDropDiams)])
 
         sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=JetNRJ_Bal[:,ia,:],cmap='jet',
                           s=pointSize,marker='s')
@@ -540,7 +607,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax2.set_xlim([0,np.max(RelOffCents)])
         
         sc2 = ax2.scatter(2*meshOC[idd,:,:]/Normalisation,meshA[idd,:,:]/(2*np.pi)*360,c=ShapeFactor[idd,:,:],vmin=0, 
-                          vmax = 1,cmap='jet',s=pointSize,marker='s')
+                          vmax = 1,cmap='Blues_r',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
         cbar2.set_label('Shape factor')
@@ -726,7 +793,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         # sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=SheetWide[:,:,ioc]*360/(2*np.pi),cmap='cividis',s=pointSize)
         
         sc2 = ax2.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=ShapeFactor[:,:,ioc],vmin=0,vmax =1,
-                          cmap='jet',s=pointSize,marker='s')
+                          cmap='Blues_r',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
         cbar2.set_label('Shape Factor')
@@ -848,6 +915,14 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     dropRadii[dropRadii>5] = dropRadii[dropRadii>5]-5 # Max radius [mm]
     
     MedianDropR = np.median(dropRadii)
+    
+    MedianDropS = 4*np.pi*MedianDropR**2
+    
+    DropNorm = ConeSurface/MedianDropS
+    
+    dropRadii = np.multiply(dropRadii,np.sqrt(DropNorm))    
+    
+    MedianDropR = np.median(dropRadii)
 
     dropVels = np.sqrt(8/3*1000/1.3*10*dropRadii/500) # in m/s or mm/ms
 
@@ -920,11 +995,11 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     
                         impactVolume[di] = I.VolFrac/100*4/3*np.pi*(ds/1000)**3
     
-                        jetVolume[di] = impactVolume[di]*I.compute_JetFrac('full_div0')/100
+                        jetVolume[di] = impactVolume[di]*I.get_JetFrac()/100
     
-                        jetNRJ[di] = I.compute_JetNRJ('full_div0')[0]
+                        jetNRJ[di] = I.compute_JetNRJ()[0]
                         
-                        DispersalDist[di] = I.compute_DispertionDist('full_div0')[0]
+                        DispersalDist[di] = I.compute_DispertionDist()[0]
                         
                         
                         del I
@@ -969,9 +1044,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax0.set_title('Impact volume for random rain of ' + str(ndrops) + ' drops')
     ax0.set_xlabel('Cone angle (°)')
-    ax0.set_ylabel('MedianDrop area/Cone area')
+    ax0.set_ylabel('Cone area / MedianDrop area')
 
-    sc0 = ax0.scatter(meshCA/(2*np.pi)*360,(meshDS*MedianDropR)**2*np.pi/ConeSurface,c=impactVolumes*1e6/TotalVolume*100,vmin=0,cmap='viridis',s=pointSize,marker='s')
+    sc0 = ax0.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=impactVolumes*1e6/TotalVolume*100,vmin=0,cmap='viridis',s=pointSize,marker='s')
 
     cbar0 = plt.colorbar(sc0)
     cbar0.set_label('Total volume impacting the cone (% of total rain volume)')
@@ -986,9 +1061,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     f1,ax1 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax1.set_title('Jet volume for random rain of ' + str(ndrops) + ' drops')
     ax1.set_xlabel('Cone angle (°)')
-    ax1.set_ylabel('MedianDrop area/Cone area')
+    ax1.set_ylabel('Cone area / MedianDrop area')
 
-    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,(meshDS*MedianDropR)**2*np.pi/ConeSurface,c=jetVolumes*1e6/TotalVolume*100,vmin=0,cmap='PuOr',s=pointSize,marker='s')
+    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=jetVolumes*1e6/TotalVolume*100,vmin=0,cmap='PuOr',s=pointSize,marker='s')
 
     cbar1 = plt.colorbar(sc1)
     cbar1.set_label('Total volume ejected as jets (% of total rain volume)')
@@ -1003,9 +1078,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax2.set_title('Efficiency [jet/impact volumes] for random rain of ' + str(ndrops) + ' drops')
     ax2.set_xlabel('Cone angle (°)')
-    ax2.set_ylabel('MedianDrop area/Cone area')
+    ax2.set_ylabel('Cone area / MedianDrop area')
 
-    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,(meshDS*MedianDropR)**2*np.pi/ConeSurface,c=efficiency,vmin=0,cmap='cividis',s=pointSize,marker='s')
+    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=efficiency,vmin=0,cmap='cividis',s=pointSize,marker='s')
         
 
     cbar2 = plt.colorbar(sc2)
@@ -1021,9 +1096,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax2.set_title('Dispersal distance for random rain of ' + str(ndrops) + ' drops')
     ax2.set_xlabel('Cone angle (°)')
-    ax2.set_ylabel('MedianDrop area/Cone area')
+    ax2.set_ylabel('Cone area / MedianDrop area')
 
-    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,(meshDS*MedianDropR)**2*np.pi/ConeSurface,c=DispersalDists/1000,vmin=0,cmap='plasma',s=pointSize,marker='s')
+    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=DispersalDists/1000,vmin=0,cmap='plasma',s=pointSize,marker='s')
         
 
     cbar2 = plt.colorbar(sc2)
@@ -1039,9 +1114,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     f3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax3.set_title('Kinetic energy in jets\n for random rain of ' + str(ndrops) + ' drops')
     ax3.set_xlabel('Cone angle (°)')
-    ax3.set_ylabel('MedianDrop area/Cone area')
+    ax3.set_ylabel('Cone area / MedianDrop area')
 
-    sc3 = ax3.scatter(meshCA/(2*np.pi)*360,(meshDS*MedianDropR)**2*np.pi/ConeSurface,c=jetNRJs,cmap='rainbow',s=pointSize,marker='s')
+    sc3 = ax3.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=jetNRJs,cmap='rainbow',s=pointSize,marker='s')
 
     cbar3 = plt.colorbar(sc3)
     cbar3.set_label('Kinetic energy [J]')
