@@ -64,10 +64,11 @@ def Circle2Cone(X,Y,Alpha,Ad):
     
     return(Xnew,Ynew)
 
+
 def Cone2CircleZ(X,Y,Z,Alpha):
     # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
     
-    A,R = vf.ToCirc(X,Y,angle = 'rad')
+    A,R = vf.ToCirc(X,Y,angle = 'rad') 
     
     R1 = Z*np.sin(Alpha)*np.cos(Alpha) + R*np.square(np.sin(Alpha))
     
@@ -79,15 +80,6 @@ def Cone2CircleZ(X,Y,Z,Alpha):
 
     return(Xnew,Ynew,Znew)
 
-# def Circle2ConeZ(X,Y,Z,Alpha): 
-#     # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
-    
-#     Xnew,Ynew = Circle2Cone(X,Y,Alpha,0)
-            
-#     A,R = vf.ToCirc(X,Y,angle = 'rad')
-#     Znew = Z + np.divide(R,np.tan(Alpha))
-    
-#     return(Xnew,Ynew,Znew)
     
 
 
@@ -125,8 +117,8 @@ def SphereH(R,X,Y,Xs):
     
     H = 2*np.sqrt(R**2-(X-Xs)**2-Y**2)
     
-    H[np.isnan(H)] = R/1000
-    H[H==0] = R/1000
+    H[np.isnan(H)] = 0
+    H[H==0] = 0
     
     return(H)
 

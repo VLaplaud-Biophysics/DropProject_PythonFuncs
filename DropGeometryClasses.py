@@ -300,13 +300,20 @@ class Drop:
         Xs = np.linspace(Xmin, Xmax, npts)
         Ys = np.linspace(Ymin, Ymax, npts)
         
-        Xgrid,Ygrid = np.meshgrid(Xs,Ys)
+        Zs = np.linspace(-self.Rdrop,self.Rdrop,npts)
+
+        
+        Xgrid,Ygrid,Zgrid = np.meshgrid(Xs,Ys,Zs)
         
 
         XgridF = Xgrid.flatten()
         YgridF = Ygrid.flatten()
+        ZgridF = Zgrid.flatten()
+        
+        XgridMid = XgridF[ZgridF ==0]
+        YgridMid = YgridF[ZgridF ==0]
 
-        Agrid,Rgrid = vf.ToCirc(XgridF,YgridF)
+        Agrid,Rgrid = vf.ToCirc(XgridMid,YgridMid)
 
         isDrop = self.IsIn(Rgrid,Agrid)
         
@@ -317,18 +324,33 @@ class Drop:
         
         XgridBorder,YgridBorder = vf.ToCart(AgridBorder,RgridBorder,angle='rad')
         
-        XgridF = np.append(XgridF[isDrop],XgridBorder+self.Xd)
-        YgridF = np.append(YgridF[isDrop],YgridBorder+self.Yd)
+        XgridMidBord = np.append(XgridMid[isDrop],XgridBorder+self.Xd)
+        YgridMidBord = np.append(YgridMid[isDrop],YgridBorder+self.Yd)
         
 
         self.meshXFull = Xgrid # in cone config
         self.meshYFull = Ygrid # in cone config
+        self.meshZFull = Zgrid # in cone config
         
-        self.meshX = XgridF # in cone config
-        self.meshY = YgridF # in cone config
+        self.meshX = XgridMidBord # in cone config
+        self.meshY = YgridMidBord # in cone config
         self.meshH = dgf.SphereH(self.Rdrop,self.meshX,self.meshY,self.Xd)
         
-      
+        self.meshZmin = -self.meshH/2
+        self.meshZmax = self.meshZmin + self.meshH
+        
+        meshH_z = dgf.SphereH(self.Rdrop,Xgrid,Ygrid,self.Xd)
+        
+        self.meshZmin3D = -meshH_z/2
+        self.meshZmax3D = self.meshZmin3D + meshH_z
+        
+        
+        
+        inDrop3D = (ZgridF<self.meshZmax3D.flatten())&(ZgridF>self.meshZmin3D.flatten())
+        
+        self.meshX3D = XgridF[inDrop3D]
+        self.meshY3D = YgridF[inDrop3D]
+        self.meshZ3D = ZgridF[inDrop3D]
         
         ### H gradient 
         
@@ -353,7 +375,11 @@ class Drop:
         
     def mesh(self):
         
-        return(self.meshX,self.meshY,self.meshH)
+        return(self.meshX,self.meshY,self.meshH)    
+    
+    def mesh3D(self):
+        
+        return(self.meshX3D,self.meshY3D,self.meshZ3D)
     
     def Hgradient(self): 
         
@@ -470,8 +496,25 @@ class Impact:
         self.meshY = meshY[InCone]
         self.meshH = meshH[InCone]
         
-        self.meshZmin = np.max(self.meshH/2)-self.meshH/2
-        self.meshZmax = self.meshZmin + self.meshH
+        self.meshZmin = self.Drop.meshZmin[InCone]
+        self.meshZmax = self.Drop.meshZmax[InCone]
+        
+        
+
+        ##### Computation of contact height
+        
+        OffC = self.Drop.Xd 
+        DropR = self.Drop.Rdrop
+        ConeR = self.Cone.Rcone
+        
+        
+        if (DropR < (ConeR - OffC)/np.cos(self.Cone.Alpha)):
+            self.Zdrop = (DropR + OffC*np.cos(self.Cone.Alpha))/np.sin(self.Cone.Alpha)
+        else :
+            self.Zdrop = ConeR/np.tan(self.Cone.Alpha) + np.sqrt(DropR**2 - (OffC-ConeR)**2)
+
+        
+        
         
         ## Drop volume fraction in the impact
         
@@ -1263,49 +1306,148 @@ class Impact:
     
     
      
-    def plot_3Dview(self):
+    def plot_3Dview(self,title):
         
-        get_ipython().run_line_magic('matplotlib', 'qt')
-        fig = plt.figure()
-        ax0 = fig.add_subplot(121, projection='3d')
-        ax0.set_title('Circle config')
-        ax1 = fig.add_subplot(122, projection='3d')
-        ax1.set_title('Cone config')
+        Hmax = 2*self.Drop.Rdrop + self.Cone.Rcone/np.tan(self.Cone.Alpha)
         
-        tx = np.linspace(0,2*np.pi,30)
+        Tmax = Hmax/self.Drop.Vel
         
-        ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone*np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
-        ax1.scatter(self.meshX,self.meshY,self.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='w')
-        ax1.scatter(self.meshX,self.meshY,self.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),color='r')
-        
-        for t in tx:
-            ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone*np.tan(self.Cone.Alpha)],'g-')
+        Times = np.linspace(0,3*Tmax,100)
         
         
-        ### Circle config : removed sector to form a cone 
+        R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
+        InCone3D = R3D<self.Cone.Rcone
+        
+        MeshY3DinCone = self.Drop.meshY3D[InCone3D]
+        MeshX3DinCone = self.Drop.meshX3D[InCone3D]
+        
+        
+        trajX,trajY,trajT = self.compute_traj(Times)
+            
+        trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        
+        trajZ = np.zeros(np.shape(trajXco))
+        
+        trajZco = np.sqrt(trajXco**2+trajYco**2)/np.tan(self.Cone.Alpha)
+        
+        
+        timevect = np.unique(trajT)
+        
+        
+        for tt,it in zip(Times,range(len(Times))):
+        
+            ZdropT = self.Zdrop - tt*self.Drop.Vel
+            
+            Ztot = self.Drop.meshZ3D[InCone3D]+ZdropT
+            
+            Crossed = Ztot < R3D[InCone3D]/np.tan(self.Cone.Alpha)
+            
+            Ztot[Crossed] = np.nan
+            
+            
+            
+            # get_ipython().run_line_magic('matplotlib', 'qt')
+            fig = plt.figure(dpi=200)
+            fig.suptitle(title)
+            ax0 = fig.add_subplot(121, projection='3d')
+            ax0.view_init(elev=25, azim=-100)
+            ax0.set_title('Circle config')
+            ax0.set_xlim(-4,4)
+            ax0.set_ylim(-4,4)
+            ax0.set_zlim(0,3)
+            ax1 = fig.add_subplot(122, projection='3d')
+            ax1.set_xlim(-2.5,2.5)
+            ax1.set_ylim(-2.5,2.5)
+            ax1.set_zlim(0,5)
+            ax1.view_init(elev=30, azim=-100)
+            ax1.set_title('Cone config')
+            
+            tx = np.linspace(0,2*np.pi,1000)
+            
+            
+            ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
+            ax1.scatter(MeshX3DinCone,MeshY3DinCone,Ztot,color='c',s=1)
+            
+            for t in tx:
+                ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],'g-')
+            
+            
+            ### Circle config : removed sector to form a cone 
+                    
+            T1 = np.pi-self.Cone.Beta/2
+            T2 = np.pi+self.Cone.Beta/2
+            
+            if T1>T2:
+                Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
+            else:                
+                Ts = np.linspace(T1,T2,20)
+            
+            sectorT = np.append(np.append([T1],Ts),[T2])
+            sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
+            
+            sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
+            
+            ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
+            ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
+            Xi,Yi,Zi1 = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,Ztot,self.Cone.Alpha)
+            ax0.scatter(Xi,Yi,Zi1,color='c',s=1)
+            
+            
+            H = tt*self.Drop.Vel
+            
+            points_mask = (trajT == 0)
+            
+            heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+            heightmask = np.abs(self.Zdrop - self.meshH/2 - H) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+            
+            ax0.scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],trajZ[points_mask][heightmask],c='c',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            
+            ax1.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],trajZco[points_mask][heightmask],c='c',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            
                 
-        T1 = np.pi-self.Cone.Beta/2
-        T2 = np.pi+self.Cone.Beta/2
-        
-        if T1>T2:
-            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
-        else:                
-            Ts = np.linspace(T1,T2,20)
-        
-        sectorT = np.append(np.append([T1],Ts),[T2])
-        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
-        
-        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
-        
-        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
-        ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
-        Xi,Yi,Zi1 = dgf.Cone2CircleZ(self.meshX,self.meshY,self.meshZmin+self.Cone.Rcone*np.tan(self.Cone.Alpha),self.Cone.Alpha)
-        ax0.scatter(Xi,Yi,Zi1,color='w')
-        Xi,Yi,Zi2 = dgf.Cone2CircleZ(self.meshX,self.meshY,self.meshZmax+self.Cone.Rcone*np.tan(self.Cone.Alpha),self.Cone.Alpha)
-        ax0.scatter(Xi,Yi,Zi2,color='r')
-        
-        ax0.set_aspect('equal')
-        ax1.set_aspect('equal')
+            for i in range(it):
+                
+                i= i+1
+                
+                Ti = timevect[i]
+                
+
+                points_mask = (trajT == timevect[it-i])
+                
+                
+                
+                Hi = Ti*self.Drop.Vel 
+                
+                
+                
+                heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+                heightmask = np.abs(self.Zdrop - self.meshH/2 - Hi) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+                
+                
+
+                    
+                
+                
+                ax0.scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],trajZ[points_mask][heightmask],c='c',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
+                ax1.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],trajZco[points_mask][heightmask],c='c',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
+                
+            
+            ax0.set_aspect('equal')
+            ax1.set_aspect('equal')
+            
+    
+            
+            
+            savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\3D\Movies\\' + title
+            
+            os.makedirs(savepath,exist_ok = True)
+            
+            figname = savepath + '\Time_{:.2f}.png'
+            
+            
+            fig.savefig(figname.format(tt))
+            
+            plt.close(fig)
         
         
     

@@ -313,6 +313,21 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
 
     plt.close(fa)
     
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum KNRJ, Dispertion, and jet fraction')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Common relative scale (%)')
+    axa.plot(Angles/(2*np.pi)*360,100*JNRJAnglesMaxes/np.max(JNRJAnglesMaxes),'-ow',ms = 2,lw = 1.5,label = 'Max energy' )
+    axa.plot(Angles/(2*np.pi)*360,100*DDAnglesMaxes/np.max(DDAnglesMaxes),'-or',ms = 2,lw = 1.5,label = 'Max dispertion')
+    axa.plot(Angles/(2*np.pi)*360,100*JFAnglesMaxes/np.max(JFAnglesMaxes),'-ob',ms = 2,lw = 1.5,label = 'Max jetFrac')
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_JetNRJ.png')
+
+    plt.close(fa)
+    
     ########### Fixed angle diagrams ###########       
 
     
@@ -938,6 +953,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
         efficiency = np.load(savepath + '\Data_efficiency.npy')
         jetNRJs = np.load(savepath + '\Data_jetNRJs.npy')
         DispersalDists = np.load(savepath + '\Data_DispersalDist.npy')
+        DispersalVars = np.load(savepath + '\Data_DispersalVar.npy')
         TotalVolume = np.load(savepath + '\Data_TotalVolume.npy')
 
         print('Done !')
@@ -949,6 +965,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
         impactVolumes = np.empty(np.shape(meshCA))
         efficiency = np.empty(np.shape(meshCA))
         DispersalDists = np.empty(np.shape(meshCA))
+        DispersalVars = np.empty(np.shape(meshCA))
         jetNRJs = np.empty(np.shape(meshCA))
 
         
@@ -1026,6 +1043,8 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     
                 DispersalDists[ids,ia] = np.mean(DispersalDist) # [m]
                 
+                DispersalVars[ids,ia] = np.std(DispersalDist) # [m]
+                
                 
                 
                 
@@ -1033,6 +1052,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
         np.save(savepath + '\Data_jetVolumes.npy',jetVolumes)
         np.save(savepath + '\Data_efficiency.npy',efficiency)
         np.save(savepath + '\Data_DispersalDist.npy',DispersalDists)
+        np.save(savepath + '\Data_DispersalVar.npy',DispersalVars)
         np.save(savepath + '\Data_jetNRJs.npy',jetNRJs)
         np.save(savepath + '\Data_TotalVolume.npy',TotalVolume)
 
@@ -1041,7 +1061,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     pointSize = 250000/(npts**2) 
 
      # Impact volume
-    f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+    f0,ax0 = plt.subplots(dpi=500,figsize = (7,6)) 
     ax0.set_title('Impact volume for random rain of ' + str(ndrops) + ' drops')
     ax0.set_xlabel('Cone angle (°)')
     ax0.set_ylabel('Cone area / MedianDrop area')
@@ -1092,7 +1112,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
 
     plt.close(f2)
     
-    # Jet/touching nrj
+    # Dispersal dist
     f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
     ax2.set_title('Dispersal distance for random rain of ' + str(ndrops) + ' drops')
     ax2.set_xlabel('Cone angle (°)')
@@ -1107,6 +1127,24 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
 
     f2.savefig(savepath + '\OptiDgm_'
                 + label + '_'+str(int(npts))+'npts_DispersalDist.png')
+
+    plt.close(f2)
+    
+    # Dispersal dist variation
+    f2,ax2 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax2.set_title('Dispersal distance variability for random rain of ' + str(ndrops) + ' drops')
+    ax2.set_xlabel('Cone angle (°)')
+    ax2.set_ylabel('Cone area / MedianDrop area')
+
+    sc2 = ax2.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=DispersalVars/1000,vmin=0,cmap='jet',s=pointSize,marker='s')
+        
+
+    cbar2 = plt.colorbar(sc2)
+    cbar2.set_label('Variability between drops in dispersal distance [m]')
+    f2.tight_layout()
+
+    f2.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_DispersalVar.png')
 
     plt.close(f2)
 
