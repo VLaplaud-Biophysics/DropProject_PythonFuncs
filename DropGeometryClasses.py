@@ -61,9 +61,9 @@ class Cone:
     
     def IsIn(self,R,Theta): 
         
-        isInCone = R<self.Rcone
+        isinCone = R<self.Rcone
         
-        return(isInCone)
+        return(isinCone)
     
     def IsInCircle(self,R,Theta): 
         
@@ -490,14 +490,14 @@ class Impact:
         
         meshX,meshY,meshH = self.Drop.mesh() # Cone config
         
-        InCone = np.sqrt(np.square(meshX) + np.square(meshY))<self.Cone.Rcone
+        inCone = np.sqrt(np.square(meshX) + np.square(meshY))<self.Cone.Rcone
         
-        self.meshX = meshX[InCone]
-        self.meshY = meshY[InCone]
-        self.meshH = meshH[InCone]
+        self.meshX = meshX[inCone]
+        self.meshY = meshY[inCone]
+        self.meshH = meshH[inCone]
         
-        self.meshZmin = self.Drop.meshZmin[InCone]
-        self.meshZmax = self.Drop.meshZmax[InCone]
+        self.meshZmin = self.Drop.meshZmin[inCone]
+        self.meshZmax = self.Drop.meshZmax[inCone]
         
         
 
@@ -887,27 +887,27 @@ class Impact:
         velfactor1 = np.divide(dispX1,meshVXci)
         velfactor2 = np.divide(dispX2,meshVXci)
         
-        incone1 = np.sqrt(np.square(xi1)+np.square(yi1))<self.Cone.Rcircle
-        incone2 = np.sqrt(np.square(xi2)+np.square(yi2))<self.Cone.Rcircle
+        inCone1 = np.sqrt(np.square(xi1)+np.square(yi1))<self.Cone.Rcircle
+        inCone2 = np.sqrt(np.square(xi2)+np.square(yi2))<self.Cone.Rcircle
         
         
         # intersection 
         
         if self.Cone.Alpha>np.pi/6:     
-            inter1 = ((velfactor1>0) & incone1 & (xi1<0))
-            inter2 = ((velfactor2>0) & incone2 & (xi2<0))
+            inter1 = ((velfactor1>0) & inCone1 & (xi1<0))
+            inter2 = ((velfactor2>0) & inCone2 & (xi2<0))
             
             inter = inter1 | inter2
             
         elif  self.Cone.Alpha<np.pi/6:    
-            inter1 = ((velfactor1>0)&(incone1)&(xi1>0))
-            inter2 = ((velfactor2>0)&(incone2)&(xi2>0))
+            inter1 = ((velfactor1>0)&(inCone1)&(xi1>0))
+            inter2 = ((velfactor2>0)&(inCone2)&(xi2>0))
             
             inter = inter1 | inter2
             
         else:   
-            inter1 = ((velfactor1>0)&(incone1)) 
-            inter2 = ((velfactor2>0)&(incone2))
+            inter1 = ((velfactor1>0)&(inCone1)) 
+            inter2 = ((velfactor2>0)&(inCone2))
             
             inter = inter1 | inter2        
         
@@ -1304,6 +1304,54 @@ class Impact:
         return    
     
     
+    def plot_3Dproj(self):
+        
+        R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
+        inCone3D = R3D<self.Cone.Rcone
+        
+        MeshY3DinCone = self.Drop.meshY3D[inCone3D]
+        MeshX3DinCone = self.Drop.meshX3D[inCone3D]
+        MeshZ3DinCone = self.Drop.meshZ3D[inCone3D]+self.Zdrop
+        
+        MeshX2Dcircle,MeshY2Dcircle = self.Cone.Cone2Circle(MeshX3DinCone,MeshY3DinCone)
+        
+        MeshX3Dcircle,MeshY3Dcircle,MeshZ3Dcircle = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,MeshZ3DinCone,self.Cone.Alpha)
+        
+        
+        ### Circle config : removed sector to form a cone 
+                
+        tx = np.linspace(0,2*np.pi,300)
+        
+        T1 = np.pi-self.Cone.Beta/2
+        T2 = np.pi+self.Cone.Beta/2
+        
+        if T1>T2:
+            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
+        else:                
+            Ts = np.linspace(T1,T2,20)
+        
+        sectorT = np.append(np.append([T1],Ts),[T2])
+        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
+        
+        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
+        
+        
+        
+        
+        fig0, ax0 = plt.subplots(dpi=200)
+        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=3,label = 'Circle')
+        ax0.plot(sectorX,sectorY,'--m',lw=3, label = 'Removed sector')
+        
+        ax0.scatter(MeshX3Dcircle,MeshY3Dcircle,c='b',s=1,label='3Dproj',zorder=0)
+        ax0.scatter(MeshX2Dcircle,MeshY2Dcircle,c='c',s=1,label='2Dproj',zorder=1)
+        
+        ax0.set_aspect('equal')
+        
+        plt.legend(fontsize='xx-small',loc='upper left')
+        
+        fig0.tight_layout()
+        
+        plt.show()
     
      
     def plot_3Dview(self,title):
@@ -1312,15 +1360,15 @@ class Impact:
         
         Tmax = Hmax/self.Drop.Vel
         
-        Times = np.linspace(0,3*Tmax,100)
+        Times = np.linspace(0,4*Tmax,180)
         
         
         R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
-        InCone3D = R3D<self.Cone.Rcone
+        inCone3D = R3D<self.Cone.Rcone
         
-        MeshY3DinCone = self.Drop.meshY3D[InCone3D]
-        MeshX3DinCone = self.Drop.meshX3D[InCone3D]
-        
+        MeshY3DinCone = self.Drop.meshY3D[inCone3D]
+        MeshX3DinCone = self.Drop.meshX3D[inCone3D]
+         
         
         trajX,trajY,trajT = self.compute_traj(Times)
             
@@ -1335,15 +1383,34 @@ class Impact:
         
         
         for tt,it in zip(Times,range(len(Times))):
+            
+            print(str(it+1) + '/' + str(len(Times)),end='\r')
         
             ZdropT = self.Zdrop - tt*self.Drop.Vel
             
-            Ztot = self.Drop.meshZ3D[InCone3D]+ZdropT
+            ZtotinCone = self.Drop.meshZ3D[inCone3D]+ZdropT
             
-            Crossed = Ztot < R3D[InCone3D]/np.tan(self.Cone.Alpha)
             
-            Ztot[Crossed] = np.nan
+            ZtotUpinCone = self.Drop.meshZ3D[inCone3D]+ZdropT+2*self.Drop.Rdrop
+            ZtotUpOutCone = self.Drop.meshZ3D[~inCone3D]+ZdropT+2*self.Drop.Rdrop
             
+            
+            
+            Crossed = ZtotinCone < R3D[inCone3D]/np.tan(self.Cone.Alpha)
+            
+            ZtotinCone[Crossed] = np.nan
+            
+            
+            
+            CrossedUp = ZtotUpinCone < R3D[inCone3D]/np.tan(self.Cone.Alpha)
+            
+            ZtotUpinCone[CrossedUp] = np.nan
+            
+            
+            
+            CrossedUpOut = ZtotUpOutCone < 0
+            
+            ZtotUpOutCone[CrossedUpOut] = 0
             
             
             # get_ipython().run_line_magic('matplotlib', 'qt')
@@ -1366,7 +1433,7 @@ class Impact:
             
             
             ax1.plot(self.Cone.Rcone*np.cos(tx), self.Cone.Rcone*np.sin(tx),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=4)
-            ax1.scatter(MeshX3DinCone,MeshY3DinCone,Ztot,color='c',s=1)
+            ax1.scatter(MeshX3DinCone,MeshY3DinCone,ZtotinCone,color='c',s=1)
             
             for t in tx:
                 ax1.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],'g-')
@@ -1389,7 +1456,7 @@ class Impact:
             
             ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),0,color = 'g', lw=3,label = 'Circle');
             ax0.plot(sectorX,sectorY,0,'--r',lw=3, label = 'Removed sector')
-            Xi,Yi,Zi1 = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,Ztot,self.Cone.Alpha)
+            Xi,Yi,Zi1 = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,ZtotinCone,self.Cone.Alpha)
             ax0.scatter(Xi,Yi,Zi1,color='c',s=1)
             
             
@@ -1448,6 +1515,184 @@ class Impact:
             fig.savefig(figname.format(tt))
             
             plt.close(fig)
+            
+            
+            
+    def rotating_3D(self,title):
+        
+        Hmax = 2*self.Drop.Rdrop + self.Cone.Rcone/np.tan(self.Cone.Alpha)
+        
+        Tmax = Hmax/self.Drop.Vel
+        
+        Times = np.linspace(0,4*Tmax,180)
+        
+        
+        R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
+        inCone3D = R3D<self.Cone.Rcone
+        
+        MeshY3DinCone = self.Drop.meshY3D[inCone3D]
+        MeshX3DinCone = self.Drop.meshX3D[inCone3D]
+        
+        
+        MeshY3DOutCone = self.Drop.meshY3D[~inCone3D]
+        MeshX3DOutCone = self.Drop.meshX3D[~inCone3D]
+        
+        
+        trajX,trajY,trajT = self.compute_traj(Times)
+            
+        trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
+        
+        trajZco = np.sqrt(trajXco**2+trajYco**2)/np.tan(self.Cone.Alpha)
+        
+        
+        timevect = np.unique(trajT)
+        
+        
+        for tt,it in zip(Times,range(len(Times))):
+            
+            print(str(it+1) + '/' + str(len(Times)),end='\r')
+        
+            ZdropT = self.Zdrop - tt*self.Drop.Vel
+            
+            ZtotinCone = self.Drop.meshZ3D[inCone3D]+ZdropT
+            
+            
+            ZtotUpinCone = self.Drop.meshZ3D[inCone3D]+ZdropT+2*self.Drop.Rdrop
+            ZtotUpOutCone = self.Drop.meshZ3D[~inCone3D]+ZdropT+2*self.Drop.Rdrop
+            
+            
+            
+            Crossed = ZtotinCone < R3D[inCone3D]/np.tan(self.Cone.Alpha)
+            
+            ZtotinCone[Crossed] = np.nan
+            
+            
+            
+            CrossedUp = ZtotUpinCone < R3D[inCone3D]/np.tan(self.Cone.Alpha)
+            
+            ZtotUpinCone[CrossedUp] = np.nan
+            
+            
+            
+            CrossedUpOut = ZtotUpOutCone < 0
+            
+            ZtotUpOutCone[CrossedUpOut] = 0
+        
+        ##### Rotating impact
+        Az = 290-it*360/len(Times)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.view_init(elev=18, azim=Az)
+        
+        # Make panes transparent
+        ax.xaxis.pane.fill = False # Left pane
+        ax.yaxis.pane.fill = False # Right pane
+        
+        # Remove grid lines
+        ax.grid(False)
+        
+        # Remove tick labels
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_zticklabels([])
+        
+        # Transparent spines
+        ax.w_xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        ax.w_yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        ax.w_zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+        
+        # Transparent panes
+        ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.w_zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        
+        # No ticks
+        ax.set_xticks([]) 
+        ax.set_yticks([]) 
+        ax.set_zticks([])
+        
+        ax.set_xlim(-5,5)
+        ax.set_ylim(-5,5)
+        ax.set_zlim(0,5)
+        
+        
+        tx1 = np.linspace(-1*np.pi/6,7*np.pi/6,1000)+np.pi/2+Az/180*np.pi
+        tx2 = np.linspace(7*np.pi/6,11*np.pi/6,1000)+np.pi/2+Az/180*np.pi
+        
+        ax.plot(self.Cone.Rcone*np.cos(tx1), self.Cone.Rcone*np.sin(tx1),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=-2)
+        
+        ax.plot(self.Cone.Rcone*np.cos(tx2), self.Cone.Rcone*np.sin(tx2),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=201)
+        
+        ax.plot(self.Cone.Rcone*np.cos(0), self.Cone.Rcone*np.sin(0),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'r.', ms = 3, label='Cone',zorder=202)
+        
+        ax.plot([0, self.Cone.Rcone*np.cos(0)],[0, self.Cone.Rcone*np.sin(0)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                '-r',zorder=199)
+        
+        for t in tx1[0:-1:2]:
+            ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                    '-',color = [0,0.7,0],zorder=-3)
+        
+        for t in tx2:
+            ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                    '-',color = [0,0.7,0],zorder=200)
+          
+        
+        ax.plot([-3.5,3.5,3.5,-3.5],[3.5,3.5,-3.5,-3.5],[0,0,0,0],'.r',ms=5,zorder=-5)
+        
+        ax.scatter(MeshX3DinCone,MeshY3DinCone,ZtotUpinCone,color='b',s=1,zorder=0)
+        
+        ax.scatter(MeshX3DOutCone,MeshY3DOutCone,ZtotUpOutCone,color='b',s=1,zorder=0)
+        
+        
+        H = tt*self.Drop.Vel
+        
+        points_mask = (trajT == 0)
+        
+        heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+        heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - H) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+        
+        ax.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],
+                   trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=1)
+        
+            
+        for i in range(it):
+            
+            i= i+1
+            
+            Ti = timevect[i]
+            
+
+            points_mask = (trajT == timevect[it-i])
+            
+            
+            
+            Hi = Ti*self.Drop.Vel 
+            
+            
+            
+            heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+            heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - Hi) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+            
+
+            ax.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],
+                       trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=i)
+            
+        
+        
+        
+        ax.set_aspect('equal')
+        
+        savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\3D\Movies\\RotatingView_' + title
+        
+        os.makedirs(savepath,exist_ok = True)
+        
+        figname = savepath + '\Right_Time_{:.2f}.png'
+        
+        
+        fig.savefig(figname.format(tt))
+        
+        plt.close(fig)
         
         
     
