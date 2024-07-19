@@ -8,7 +8,9 @@ import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
 
-from scipy.interpolate import LinearNDInterpolator
+from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
+
+import seaborn as sns
 
 import DropGeometryFuncs as dgf
 
@@ -1304,7 +1306,7 @@ class Impact:
         return    
     
     
-    def plot_3Dproj(self):
+    def plot_3Dproj(self,title,resolution):
         
         R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
         inCone3D = R3D<self.Cone.Rcone
@@ -1335,21 +1337,98 @@ class Impact:
         
         sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
         
+        fig1,[[ax0,ax1],[ax2,ax3]] = plt.subplots(dpi=200,ncols=2,nrows=2)
+        fig1.suptitle(title)
+        ax0.set_title('Points')
+        ax1.set_title('Hist')
+        ax2.set_title('Interp')
         
+        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+        ax0.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
         
-        
-        fig0, ax0 = plt.subplots(dpi=200)
-        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=3,label = 'Circle')
-        ax0.plot(sectorX,sectorY,'--m',lw=3, label = 'Removed sector')
-        
-        ax0.scatter(MeshX3Dcircle,MeshY3Dcircle,c='b',s=1,label='3Dproj',zorder=0)
-        ax0.scatter(MeshX2Dcircle,MeshY2Dcircle,c='c',s=1,label='2Dproj',zorder=1)
+        ax0.scatter(MeshX3Dcircle,MeshY3Dcircle,c='b',s=0.5,label='3Dproj',zorder=0)
+        ax0.scatter(MeshX2Dcircle,MeshY2Dcircle,c='c',s=0.5,label='2Dproj',zorder=1)
         
         ax0.set_aspect('equal')
+        xlim = ax0.get_xlim()
+        ylim = ax0.get_ylim()
         
-        plt.legend(fontsize='xx-small',loc='upper left')
         
-        fig0.tight_layout()
+        
+        ax1.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+        ax1.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+
+        ax2.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+        ax2.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+        
+        ax3.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+        ax3.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+        
+        
+        
+        I = ax1.hist2d(MeshX3Dcircle,MeshY3Dcircle,zorder=0,label='Drop height (density)',bins=resolution,cmap='plasma')
+
+        ax1.set_xlim(xlim)
+        ax1.set_ylim(ylim)
+        
+        ax1.set_aspect('equal')
+        
+        h,xedges,yedges = I[0],I[1],I[2]
+        xvalues = (xedges[0:-1] + xedges[1:])/2
+        yvalues = (yedges[0:-1] + yedges[1:])/2
+        
+        HeightInterp = RegularGridInterpolator((xvalues,yvalues),h,method='cubic')
+        
+        
+        xx = np.linspace(np.min(xvalues),np.max(xvalues),50)
+        yy = np.linspace(np.min(yvalues),np.max(yvalues),50)
+        
+
+        Xs, Ys = np.meshgrid(xx, yy, indexing='ij')
+
+        # interpolator
+        
+        HeightGrid = HeightInterp((Xs, Ys))
+        
+        ax2.scatter(Xs, Ys,c= HeightGrid,cmap='plasma',marker='s')
+        
+        # sns.heatmap(HeightGrid,cmap = 'plasma',ax=ax2)
+
+
+       
+        ax2.set_xlim(xlim)
+        ax2.set_ylim(ylim)
+        
+        ax2.set_aspect('equal')
+        
+        
+        Hgrad_x, Hgrad_y = np.gradient(HeightGrid)
+        
+        
+
+        
+        xxx = np.linspace(np.min(xvalues),np.max(xvalues),15)
+        yyy = np.linspace(np.min(yvalues),np.max(yvalues),15)
+        
+        GradXInterp = RegularGridInterpolator((xx,yy), Hgrad_x, method='cubic')
+        GradYInterp = RegularGridInterpolator((xx,yy), Hgrad_y, method='cubic')
+        
+        
+
+        XXs, YYs = np.meshgrid(xxx, yyy, indexing='ij')
+
+        fieldnorm = np.sqrt(GradXInterp((XXs, YYs))**2+ GradYInterp((XXs, YYs))**2)
+        
+        ax3.quiver(XXs, YYs, np.divide(-GradXInterp((XXs, YYs)),fieldnorm), np.divide(-GradYInterp((XXs, YYs)),fieldnorm),fieldnorm,
+                   scale=20,headlength=18,headaxislength=16,headwidth=8,cmap='plasma')
+
+        
+        ax3.set_xlim(xlim)
+        ax3.set_ylim(ylim)
+        
+        ax3.set_aspect('equal')
+        
+        fig1.tight_layout()
         
         plt.show()
     
