@@ -234,7 +234,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[0] 
                 DispertionDist_Var[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[1] 
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
-                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(np.linspace(0,5,50),0.2)
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(0.2)
                 
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()/100*Drop.Mass
                 
@@ -1042,6 +1042,8 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
                 jetNRJs[ids,ia] = np.sum(jetNRJ) # [J]
     
                 DispersalDists[ids,ia] = np.median(DispersalDist[DispersalDist>0]) # [mm]
+                
+                print(DispersalDist[DispersalDist>0])
                 
                 DispersalVars[ids,ia] =  np.diff(np.percentile(DispersalDist[DispersalDist>0],[25,75])) # [mm]
                 
