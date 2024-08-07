@@ -86,6 +86,7 @@ def Cone2CircleZ(X,Y,Z,Alpha):
 def VelCone2Circle(VX,VY,X,Y,Alpha):
     # (VX,VY) velocities to transform, X,Y origin of the velovcity vector, Alpha angle of the cone
     Theta,R = vf.ToCirc(X,Y,angle = 'rad')
+
     a = (np.cos(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.sin(Theta)*np.sin(Theta*np.sin(Alpha))
     b = (np.sin(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))- np.cos(Theta)*np.sin(Theta*np.sin(Alpha))
     c = (np.cos(Theta)*np.sin(Theta*np.sin(Alpha))/np.sin(Alpha))- np.sin(Theta)*np.cos(Theta*np.sin(Alpha))
@@ -117,8 +118,10 @@ def SphereH(R,X,Y,Xs):
     
     H = 2*np.sqrt(R**2-(X-Xs)**2-Y**2)
     
+    
+    H[~np.isnan(H)] = 0.001*R + H[~np.isnan(H)]
+    
     H[np.isnan(H)] = 0
-    H[H==0] = 0
     
     return(H)
 
