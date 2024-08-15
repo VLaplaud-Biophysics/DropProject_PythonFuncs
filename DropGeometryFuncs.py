@@ -8,10 +8,6 @@ Created on Thu Oct 19 09:11:40 2023
 
 import numpy as np
 
-import matplotlib.pyplot as plt
-
-import DropGeometryClasses as dgc
-
 import VallapFunc_DP as vf
 
 ####
