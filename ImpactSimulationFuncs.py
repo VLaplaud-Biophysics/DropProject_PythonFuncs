@@ -76,7 +76,7 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velIni,meshType):
 ###
 # 2. Parameter space diagrams
 
-def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,velIni,meshType,label):
+def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,velIni,meshType,path,label):
     
     npts = len(Angles)
     
@@ -113,7 +113,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     
     nsim = meshDD.size
     
-    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\\' + label + '_' + str(npts) + 'npts'
+    savepath = path + label + '_' + str(npts) + 'npts'
     
     
     if os.path.exists(savepath+ '\JetFrac'):
@@ -223,7 +223,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[0] 
                 DispertionDistVar[idx[0][0],idx[0][1],idx[0][2]] = Dist_tmp[1] 
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
-                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor(0.2)
+                ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor()
                 
                 JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()/100*Drop.Mass
                 
@@ -302,6 +302,20 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
 
     plt.close(fa)
     
+    JVelAnglesMaxes = np.nanmax(JetVel,axis=(0,2))
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum jet velocity per angle')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Max jet velocity [m/s]')
+    axa.plot(Angles/(2*np.pi)*360,JVelAnglesMaxes,'-om',ms = 2,lw = 1.5)
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_JetVel.png')
+
+    plt.close(fa)
+    
     
     fa,axa = plt.subplots(dpi=200)
     axa.set_title('Maximum KNRJ, Dispertion, and jet fraction')
@@ -310,6 +324,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     axa.plot(Angles/(2*np.pi)*360,100*JNRJAnglesMaxes/np.max(JNRJAnglesMaxes),'-ow',ms = 2,lw = 1.5,label = 'Max energy' )
     axa.plot(Angles/(2*np.pi)*360,100*DDAnglesMaxes/np.max(DDAnglesMaxes),'-or',ms = 2,lw = 1.5,label = 'Max dispertion')
     axa.plot(Angles/(2*np.pi)*360,100*JFAnglesMaxes/np.max(JFAnglesMaxes),'-ob',ms = 2,lw = 1.5,label = 'Max jetFrac')
+    axa.plot(Angles/(2*np.pi)*360,100*JVelAnglesMaxes/np.max(JVelAnglesMaxes),'-om',ms = 2,lw = 1.5, label = 'Max jetVel')
     plt.legend()
     
     fa.tight_layout()
@@ -416,11 +431,12 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax2.set_ylim([0,np.max(RelDropDiams)])
         
         sc2 = ax2.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=ShapeFactor[:,ia,:],vmin=0,
-                          cmap='Blues_r',s=pointSize,marker='s')
+                          cmap='viridis',s=pointSize,marker='s')
         
         cbar2 = plt.colorbar(sc2)
         cbar2.set_label('Shape factor')
-        # ax2.set_aspect('equal')
+        ax2.set_xlim([0,2])
+        ax2.set_aspect('equal')
         f2.tight_layout()
         
         f2.savefig(savepath + '\ShapeFactor\FixedAngle\FxdADgm_'
@@ -510,16 +526,17 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_xlim([0,np.max(RelOffCents)])
         ax3.set_ylim([0,np.max(RelDropDiams)])
 
-        sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=JetVel[:,ia,:],cmap='jet',
+        sc3 = ax3.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=JetVel[:,ia,:],cmap='viridis',vmin=0,vmax = 7.9,
                           s=pointSize,marker='s')
         
         cbar3 = plt.colorbar(sc3)
         cbar3.set_label('Jet velocity [m/s]')
-        # ax3.set_aspect('equal')
+        ax3.set_xlim([0,2])
+        ax3.set_aspect('equal')
         f3.tight_layout()
         
         f3.savefig(savepath + '\JetVel\FixedAngle\FxdADgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_BalisticEnergy.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_JetVelocity.png')
 
         plt.close(f3)
         
@@ -545,7 +562,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f0.tight_layout()
         
         f0.savefig(savepath + '\JetFrac\FixedDrop\FxdDrDgm_'
-            + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_JetFrac.png')
+            + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_JF.png')
 
         plt.close(f0)
         
@@ -568,7 +585,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f1.tight_layout()
         
         f1.savefig(savepath + '\VolRatio\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_VolRatio.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_VolRatio.png')
         
         plt.close(f1)
         
@@ -592,7 +609,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f2.tight_layout()
         
         f2.savefig(savepath + '\SheetOpening\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_SheetOpen.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_SheetOpen.png')
         
         plt.close(f2)
         
@@ -611,7 +628,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f2.tight_layout()
         
         f2.savefig(savepath + '\ShapeFactor\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_ShapeFactor.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_ShapeFactor.png')
         
         plt.close(f2)
         
@@ -633,7 +650,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\DispertionDist\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_DispertionDist.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_DispertionDist.png')
         
         plt.close(f3)
         
@@ -651,7 +668,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\DispertionDistVar\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_DispertionDistVar.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_DispertionDistVar.png')
         
         plt.close(f3)
         
@@ -669,7 +686,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\EnRJ\FixedDrop\FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_NRJ.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_NRJ.png')
         
         plt.close(f3)
         
@@ -680,7 +697,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         ax3.set_ylabel('Cone angle [°]')
         ax3.set_xlim([0,np.max(RelOffCents)])
         
-        sc3 = ax3.scatter(2*meshOC[idd,:,:]/Normalisation,meshA[idd,:,:]/(2*np.pi)*360,c=JetVel[idd,:,:],vmin=0,
+        sc3 = ax3.scatter(2*meshOC[idd,:,:]/Normalisation,meshA[idd,:,:]/(2*np.pi)*360,c=JetVel[idd,:,:],vmin=0,vmax = 7.9,
                           cmap='jet',s=pointSize,marker='s')
         
         cbar3 = plt.colorbar(sc3)
@@ -688,7 +705,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\JetVel\FixedDrop\_1_FxdDrDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SizeRatio_JetVel.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_JetVel.png')
         
         plt.close(f3)
         
@@ -715,7 +732,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f0.tight_layout()
         
         f0.savefig(savepath + '\JetFrac\FixedDist\FxdDiDgm_'
-          + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_JetFrac.png')
+          + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_JetFrac.png')
   
         plt.close(f0)
         
@@ -738,7 +755,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f1.tight_layout()
         
         f1.savefig(savepath + '\VolRatio\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_VolRatio.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_VolRatio.png')
         
         plt.close(f1)
         
@@ -760,7 +777,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f2.tight_layout()
         
         f2.savefig(savepath + '\SheetOpening\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_SheetOpen.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_SheetOpen.png')
         
         plt.close(f2)
         
@@ -779,7 +796,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f2.tight_layout()
         
         f2.savefig(savepath + '\ShapeFactor\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_ShapeFactor.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_ShapeFactor.png')
         
         plt.close(f2)
         
@@ -800,7 +817,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\DispertionDist\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_DispertionDist.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_DispertionDist.png')
         
         plt.close(f3)
         
@@ -820,7 +837,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\DispertionDistVar\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_DispertionDistVar.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_DispertionDistVar.png')
         
         plt.close(f3)
         
@@ -840,18 +857,18 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\EnRJ\FixedDist\FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_NRJ.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_NRJ.png')
         
         plt.close(f3)
         
-        # Jet velocity [m/s] ratio in the jet
+        # Jet velocity [m/s] 
         f3,ax3 = plt.subplots(dpi=150,figsize = (7,6)) 
         ax3.set_title('Offcent_Norm: ' + str(round(roc*10)/10))
         ax3.set_xlabel('DropDiam' + NormStr)
         ax3.set_ylabel('Cone angle [°]')
         ax3.set_xlim([0,np.max(RelDropDiams)])
         
-        sc3 = ax3.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=JetVel[:,:,ioc]/10000/2*9.81e-3,
+        sc3 = ax3.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=JetVel[:,:,ioc]/10000,vmin=0,vmax = 7.9,
                           cmap='jet',s=pointSize,marker='s')
         
 
@@ -860,7 +877,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f3.tight_layout()
         
         f3.savefig(savepath + '\JetVel\FixedDist\_1_FxdDiDgm_'
-                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OffCent_JetVel.png')
+                    + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_JV.png')
         
         plt.close(f3)
         

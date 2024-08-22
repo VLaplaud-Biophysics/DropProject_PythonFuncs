@@ -14,7 +14,7 @@ from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
 
 import DropGeometryFuncs as dgf
 
-import VallapFunc_DP as vf
+import VallapFunc_Sim as vf
 
 # import time as time
 
@@ -476,7 +476,7 @@ class Impact:
 
         self.trajX = []
         self.trajY = []
-        self.TrajT = []
+        self.trajT = []
         
         self.JetFrac = []
         
@@ -520,6 +520,7 @@ class Impact:
         
         self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone) 
                        
+        ## simulate trajectories
         if not self.MISSED:
             self.compute_traj(np.linspace(0,6,300))
     
@@ -632,24 +633,7 @@ class Impact:
                     meshXci = meshOXci + self.oriX
                     meshYci = meshOYci + self.oriY
                 
-            elif self.oriType == 'CentralHeight':
-                
-                self.oriX =  np.sum(np.multiply(meshXci,self.meshH))/np.sum(self.meshH)
-                self.oriY = np.sum(np.multiply(meshYci,self.meshH))/np.sum(self.meshH)
-                
-                if self.meshType == 'zone':
-                    meshOXci = meshXci-self.oriX
-                    meshOYci = meshYci-self.oriY
-                
-                    self.meshDist = np.sqrt(np.square(meshOXci)+np.square(meshOYci))
-                    self.impactR = np.max(self.meshDist)
-                
-                elif self.meshType == 'point':
-                    meshOXci = pointmeshX
-                    meshOYci = pointmeshY
-                    
-                    meshXci = meshOXci + self.oriX
-                    meshYci = meshOYci + self.oriY
+           
             
             self.ori = meshXci,meshYci,meshOXci,meshOYci
             
@@ -853,8 +837,8 @@ class Impact:
         self.trajVYci = meshVel_Y
         
         
-        trajX[badPts] = badX
-        trajY[badPts] = badY 
+        # trajX[badPts] = badX
+        # trajY[badPts] = badY 
         
         self.trajX = trajX
         self.trajY = trajY
@@ -868,89 +852,20 @@ class Impact:
     
     
     
+    ###############################################################################
+    #                                                                             #
+    #                          Quantification methods                             #
+    #                                                                             #
+    ###############################################################################
     
+    
+
     ## Volume fraction in the jet (in % of impacting volume)
     
     def compute_JetFrac(self):
         
         meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
-        
-        
-    
-        ###### Interscetion inside the cone from equations
-    
-        # # equations for the lines of the sector borders (y = c12*x)
-        # c1 = np.tan(np.pi-self.Cone.Beta/2)
-        # c2 = np.tan(-np.pi+self.Cone.Beta/2)
-        
-        # # equation for the line along the trajectory (y = a*x + b)
-        # a = np.divide(meshVYci,meshVXci)
-        # b = np.divide((meshVXci*meshYci - meshVYci*meshXci),meshVXci)
-        
-        # # intersection points xy coord
-        # xi1 = b/(c1-a)
-        # xi2 = b/(c2-a)
-        
-        # yi1 = c1*xi1
-        # yi2 = c2*xi2
-        
-        # dispX1 = xi1-meshXci
-        # dispX2 = xi2-meshXci
-        
-        # velfactor1 = np.divide(dispX1,meshVXci)
-        # velfactor2 = np.divide(dispX2,meshVXci)
-        
-        # inCone1 = np.sqrt(np.square(xi1)+np.square(yi1))<self.Cone.Rcircle
-        # inCone2 = np.sqrt(np.square(xi2)+np.square(yi2))<self.Cone.Rcircle
-        
-        
-        # # intersection 
-        
-        # if self.Cone.Alpha>np.pi/6:     
-        #     inter1 = ((velfactor1>0) & inCone1 & (xi1<0))
-        #     inter2 = ((velfactor2>0) & inCone2 & (xi2<0))
-            
-        #     inter = inter1 | inter2
-            
-        # elif  self.Cone.Alpha<np.pi/6:    
-        #     inter1 = ((velfactor1>0)&(inCone1)&(xi1>0))
-        #     inter2 = ((velfactor2>0)&(inCone2)&(xi2>0))
-            
-        #     inter = inter1 | inter2
-            
-        # else:   
-        #     inter1 = ((velfactor1>0)&(inCone1)) 
-        #     inter2 = ((velfactor2>0)&(inCone2))
-            
-        #     inter = inter1 | inter2        
-        
-        
-        
-        # cos1 = ( (np.square(meshXci-xi1) + np.square(meshYci-yi1)) + (np.square(xi1-meshXci) + np.square(yi1-c1*meshXci)) - (np.square(meshYci-c1*meshXci)))  / (2 * np.sqrt(np.square(meshXci-xi1) + np.square(meshYci-yi1)) * np.sqrt(np.square(xi1-meshXci) + np.square(yi1-c1*meshXci)))
-        # cos2 = ( (np.square(meshXci-xi2) + np.square(meshYci-yi2)) + (np.square(xi2-meshXci) + np.square(yi2-c2*meshXci)) - (np.square(meshYci-c2*meshXci)))  / (2 * np.sqrt(np.square(meshXci-xi2) + np.square(meshYci-yi2)) * np.sqrt(np.square(xi2-meshXci) + np.square(yi2-c2*meshXci)))
-          
-        
-        # self.meshJFxci = self.meshXci[inter]
-        # self.meshJFyci = self.meshYci[inter] 
-        # self.meshJFx = self.meshX[inter]
-        # self.meshJFy = self.meshY[inter]
-        
-        # VXproj = self.meshVXci_div0
-        # VYproj = self.meshVYci_div0
-        
-        
-        # VXproj[inter1] = VXproj[inter1]*cos1[inter1]
-        # VYproj[inter1] = VYproj[inter1]*cos1[inter1]
 
-        
-        # VXproj[inter2] = VXproj[inter2]*cos2[inter2]
-        # VYproj[inter2] = VYproj[inter2]*cos2[inter2]
-        
-        # self.meshJFVx = VXproj[inter]
-        # self.meshJFVy = VYproj[inter]
-        
-        
-        
         
         ############### Intersection from trajectories (inside and outside)
         
@@ -1152,7 +1067,7 @@ class Impact:
         return(self.SheetOpen,self.wiXs,self.wiYs)
     
     
-    def compute_ShapeFactor(self,boxsize):
+    def compute_ShapeFactor(self):
         
         ######################## TO CHANGE TO MATCH ANA
         
@@ -1162,29 +1077,46 @@ class Impact:
         
         else:
             
+            trajX_save, trajY_save, trajT_save = self.get_traj()
+            
+            self.compute_traj(np.linspace(0,15,50))
                 
             trajXco, trajYco = self.Cone.Circle2Cone(self.trajX, self.trajY)
             
-            trajVXco,trajVYco =dgf.VelCircle2Cone(self.trajVXci, self.trajVYci, trajXco, trajYco, self.Cone.Alpha)
+            time = np.unique(self.trajT)
             
+            ShapeFactorTime = np.empty(np.shape(time))
             
-                        
-            mask = (trajXco < -self.Cone.Rcone) & (trajXco > -(1+boxsize)*self.Cone.Rcone)
-            
-            jetmask = ((trajVYco[mask]<=0) & (trajYco[mask]>=0)) | ((trajVYco[mask]>=0) & (trajYco[mask]<=0))
-            
-            topmask = ~jetmask
+            # f,ax = plt.subplots(dpi=200)
 
-            velsjet = np.nanmean(np.abs(trajVXco[mask][jetmask]))
+            for t,it in zip(time,range(len(time))) :
+                
+                tmask = self.trajT == t
+                
+                
+                # ax.scatter(trajXco[tmask],trajYco[tmask],color = np.random.rand(1,3))                
+                
+                Xsize = np.abs(np.nanmin(trajXco[tmask])) - self.Cone.Rcone
+                
+                Ysize = (np.nanmax(trajYco[tmask]) - np.nanmin(trajYco[tmask]))/2 - self.Cone.Rcone
 
-            velsside = np.nanmean(np.abs(trajVYco[mask][topmask]))
+                Xsize = np.max([Xsize,0])
+
+                Ysize = np.max([Ysize,0])
+                
+                ShapeFactorTime[it] = Ysize/Xsize
+                
+            self.ShapeFactor = ShapeFactorTime[-1]
+
+            # f,ax = plt.subplots()
+            # ax.set_xlabel('Time [ms]')
+            # ax.set_ylabel('ShapeFactor')
+            # ax.plot(time,ShapeFactorTime,'-.',label = 'ShapeFactor in time')
+            # plt.plot([time[0],time[-1]],[self.ShapeFactor, self.ShapeFactor], label = 'ShapeFactor median')
+            # plt.plot([time[0],time[-1]],[ShapeFactorTime[-1], ShapeFactorTime[-1]], label = 'ShapeFactor last value')
+            # plt.show()
             
-            if np.isnan(velsside):
-                velsside = 0
-
-            
-            self.ShapeFactor = velsside/velsjet
-
+            self.trajX, self.trajY, self.trajT = trajX_save, trajY_save, trajT_save
 
         
         return(self.ShapeFactor)
@@ -1208,11 +1140,12 @@ class Impact:
             
             # Jet trajectories and time abscisse
                         
-            mask = (trajXco < -self.Cone.Rcone) & (np.abs(trajYco) < self.Rcone*0.01)
+            mask = (trajXco < -self.Cone.Rcone) & (np.abs(trajYco) < self.Cone.Rcone*0.01)
             
-            times = self.TrajT[mask]
             
-            OutTimes = np.unique(times).sort[0:2] # three first time point of a trajectory being out of the cone
+            times = self.trajT[mask]
+            
+            OutTimes = np.sort(np.unique(times))[0:2] # three first time point of a trajectory being out of the cone
             
             timeMask = np.isin(times,OutTimes) 
             
@@ -1420,8 +1353,8 @@ class Impact:
         fig, ax = self.Cone.draw(drop=self.Drop,nolabels=NoLabels,dropview = 'impact',conelinewidth=ConeLW,dropmesh=False,
                                  conecolor=ConeColor,title=Title,xlabelCi=Xlabel_Ci,ylabelCi=Ylabel_Ci,xlabelCo=Xlabel_Co,ylabelCo=Ylabel_Co)
            
-
-        trajX,trajY,trajT = self.compute_traj(Time)
+        self.compute_traj(Time)
+        trajX,trajY,trajT = self.get_traj()
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
     
@@ -1435,11 +1368,11 @@ class Impact:
         trajVco = np.sqrt(np.square(trajVXco)+ np.square(trajVYco))
         
 
-        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajVci.flatten()[order],cmap = 'Reds',s=1,zorder = -1)   
+        sc0 = ax[0].scatter(trajX.flatten()[order],trajY.flatten()[order],c=trajVci.flatten()[order],cmap = 'Reds',s=0.5,zorder = -1)   
         ax[0].set_box_aspect(1)
         fig.colorbar(sc0, ax = ax[0],orientation='horizontal',label = 'Velocity')
         
-        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajVco.flatten()[order],cmap = 'Reds',zorder = -1)
+        sc1 = ax[1].scatter(trajXco.flatten()[order],trajYco.flatten()[order],c=trajVco.flatten()[order],s=0.5,cmap = 'Reds',zorder = -1)
         
         
         ax[1].scatter(self.wiXs,self.wiYs,s=15,color='r',label='Sheet limits',zorder=4)
@@ -1595,7 +1528,8 @@ class Impact:
         MeshX3DinCone = self.Drop.meshX3D[inCone3D]
          
         
-        trajX,trajY,trajT = self.compute_traj(Times)
+        self.compute_traj(Times)
+        trajX,trajY,trajT = self.get_traj()
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
         
@@ -1763,7 +1697,8 @@ class Impact:
         MeshX3DOutCone = self.Drop.meshX3D[~inCone3D]
         
         
-        trajX,trajY,trajT = self.compute_traj(Times)
+        self.compute_traj(Times)
+        trajX,trajY,trajT = self.get_traj()
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
         
@@ -1964,7 +1899,8 @@ class Impact:
          
         os.makedirs(savepath,exist_ok=True)
         
-        trajX,trajY,trajT = self.compute_traj(Time)
+        self.compute_traj(Time)
+        trajX,trajY,trajT = self.get_traj()
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
         
@@ -1993,9 +1929,9 @@ class Impact:
             heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
             heightmask = self.meshH/2 > np.abs(H - contactDist)
             
-            ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
             
-            ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 1,vmin=0,vmax=self.Drop.Rdrop)
+            ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
             
                 
             for i in range(iT):

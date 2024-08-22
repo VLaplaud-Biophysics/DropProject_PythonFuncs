@@ -8,7 +8,7 @@ Created on Thu Oct 19 09:11:40 2023
 
 import numpy as np
 
-import VallapFunc_DP as vf
+import VallapFunc_Sim as vf
 
 ####
 # 1. Compute cone geometrical transformation parameters
