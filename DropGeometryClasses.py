@@ -736,112 +736,121 @@ class Impact:
                
         trajT = ml.repmat(Time,len(meshXci),1).T
         
-        meshPts_X = ml.repmat(meshXci,len(Time),1)
-        meshPts_Y = ml.repmat(meshYci,len(Time),1)
+        meshPts_Xci = ml.repmat(meshXci,len(Time),1)
+        meshPts_Yci = ml.repmat(meshYci,len(Time),1)
         
-        meshVel_X = ml.repmat(meshVXci,len(Time),1)
-        meshVel_Y = ml.repmat(meshVYci,len(Time),1)
-        
-                
-        # meshPts_VX = ml.repmat(meshVXci,len(Time),1)
-        # meshPts_VY = ml.repmat(meshVYci,len(Time),1)          
-                
-        # trajX = meshPts_X + np.multiply(meshPts_VX,trajT)
-        # trajY = meshPts_Y + np.multiply(meshPts_VY,trajT)
-                
-        
+        meshVel_Xci = ml.repmat(meshVXci,len(Time),1)
+        meshVel_Yci = ml.repmat(meshVYci,len(Time),1)
+             
         
         for it in range(1,len(Time)):
             
-            meshPts_X[it,:] = meshPts_X[it-1,:] + meshVel_X[it-1,:]*(Time[it]-Time[it-1])
-            meshPts_Y[it,:] = meshPts_Y[it-1,:] + meshVel_Y[it-1,:]*(Time[it]-Time[it-1])
+            # position at it is position at it-1 + (velocity at it-1 * dt)
             
-            out_mask = np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle
+            meshPts_Xci[it,:] = meshPts_Xci[it-1,:] + meshVel_Xci[it-1,:]*(Time[it]-Time[it-1])
+            meshPts_Yci[it,:] = meshPts_Yci[it-1,:] + meshVel_Yci[it-1,:]*(Time[it]-Time[it-1])
             
-            # out_mask = (np.sqrt(np.square(meshPts_X[it,:]) + np.square(meshPts_Y[it,:]))>self.Cone.Rcircle) & ()
+
+            #######################################################################
+            ###### Finding points that crossed the removed sector 
+            
+            # trajectory points on it-1 and ith image
+            
+            trajXci = meshPts_Xci[it-1,:]
+            trajYci = meshPts_Yci[it-1,:]
+            
+            trajXci1 = meshPts_Xci[it,:]
+            trajYci1 = meshPts_Yci[it,:]
+
+            # expression in radial coordinates
+           
+            T,r =  vf.ToCirc(trajXci1,trajYci1,angle='rad')
+            
+            T = np.mod(T,2*np.pi)
+            
+            # Finding points that crossed the sector border
+            
+            Beta = self.Cone.Beta # angle of sector to remove
+            
+            Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
+            
+            OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
+            
+            T1 = np.mod(OffA - Beta/2,2*np.pi)
+            XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
+            T2 = np.mod(OffA + Beta/2,2*np.pi)
+            XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
+            if T1>T2:
+                goodPts = ((T < T1) & (T > T2))            
+            else:                
+                goodPts = ((T < T1) | (T > T2))
+            
+            badPts = ~goodPts
+            
+            # Points that have crossed (and their previous points), expressed in cone configuration
+            
+            trajXco, trajYco = dgf.Circle2Cone(trajXci[badPts],trajYci[badPts], self.Cone.Alpha, 0) 
+            trajXco1, trajYco1 = dgf.Circle2Cone(trajXci1[badPts],trajYci1[badPts], self.Cone.Alpha, 0) 
+            
+            # velocity at crossing
+            
+            tmp_velX = (trajXco1-trajXco)/(Time[it]-Time[it-1])
+            
+            tmp_velY = (trajYco1-trajYco)/(Time[it]-Time[it-1])
             
             
-            Xco,Yco = dgf.Circle2Cone(meshPts_X[it-1,:],meshPts_Y[it-1,:], self.Cone.Alpha, 0)
-            Xco1,Yco1 = dgf.Circle2Cone(meshPts_X[it,:],meshPts_Y[it,:], self.Cone.Alpha, 0)
+            # Corrections : Y pos = 0 to put on the line of the jet, VY = to only move in the direction of the jet
             
             
-            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_X[it-1,:],meshVel_Y[it-1,:],Xco,Yco, self.Cone.Alpha)
+            meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts] = dgf.Cone2Circle(trajXco1,trajYco1*0, self.Cone.Alpha, 0) 
             
+            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY*0,trajXco1,trajXco1*0, self.Cone.Alpha)
+            
+            meshVel_Xci[it,:][badPts] = velX_new
+            meshVel_Yci[it,:][badPts] = velY_new
+            
+            ############################################################
+            ##### Correcting points trajectory outside of the cone
+            
+            # Point whose ith position is outside of the cone
+            
+            out_mask = np.sqrt(np.square(meshPts_Xci[it,:]) + np.square(meshPts_Yci[it,:]))>self.Cone.Rcircle
+                       
+            # Point position in cone configuration for it-1 and it
+            
+            Xco,Yco = dgf.Circle2Cone(meshPts_Xci[it-1,:],meshPts_Yci[it-1,:], self.Cone.Alpha, 0) 
+            Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha, 0)
+            
+            # velocity of the points in the cone configuration
+            
+            tmp_velX = (Xco1-Xco)/(Time[it]-Time[it-1])
+            
+            tmp_velY = (Yco1-Yco)/(Time[it]-Time[it-1])
+            
+            # tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_Xci[it-1,:],meshVel_Yci[it-1,:],Xco,Yco, self.Cone.Alpha)
+            
+            # transfert in circle config
             
             velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
             
-            chgmask = np.multiply(velX_new,meshVel_X[it-1,:]) < 0
+            # chgmask = np.multiply(velX_new,meshVel_Xci[it-1,:]) < 0
             
-            velX_new[chgmask] = meshVel_X[it-1,:][chgmask]
-            velY_new[chgmask] = meshVel_Y[it-1,:][chgmask]
+            # velX_new[chgmask] = meshVel_Xci[it-1,:][chgmask]
+            # velY_new[chgmask] = meshVel_Yci[it-1,:][chgmask]
             
             
-            meshVel_X[it,:][out_mask] = velX_new[out_mask]
-            meshVel_Y[it,:][out_mask] = velY_new[out_mask]
+            meshVel_Xci[it,:][out_mask] = velX_new[out_mask]
+            meshVel_Yci[it,:][out_mask] = velY_new[out_mask]
             
-            # fieldnormCi = np.sqrt(np.square(meshVel_X[it,:])+np.square(meshVel_Y[it,:]))
+            # fieldnormCi = np.sqrt(np.square(meshVel_Xci[it,:])+np.square(meshVel_Yci[it,:]))
             
 
-            
         
-        trajX = meshPts_X
-        trajY = meshPts_Y
-
-       
-        T,r =  vf.ToCirc(trajX,trajY,angle='rad')
+        self.trajVXci = meshVel_Xci
+        self.trajVYci = meshVel_Yci
         
-        T = np.mod(T,2*np.pi)
-        
-        Beta = self.Cone.Beta # angle of sector to remove
-        Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
-        OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
-        # OffA = np.pi # if drop aligned
-        T1 = np.mod(OffA - Beta/2,2*np.pi)
-        XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
-        T2 = np.mod(OffA + Beta/2,2*np.pi)
-        XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
-        if T1>T2:
-            goodPts = ((T < T1) & (T > T2))            
-        else:                
-            goodPts = ((T < T1) | (T > T2))
-        
-        badPts = ~goodPts
-        
-        badX,badY = trajX[badPts],trajY[badPts]
-
-        badT,badR = vf.ToCirc(badX,badY,angle='rad') 
-        
-        
-        lx = -(meshPts_X[badPts]*np.tan(Beta/2)+np.abs(meshPts_Y[badPts]))/(np.abs(np.sin(badT))-np.abs(np.cos(badT))*np.tan(Beta/2))
-        
-        lz = (lx*np.abs(np.sin(badT))+np.abs(meshPts_Y[badPts]))/np.sin(Beta/2)
-
-        # Sorting the bad point on both side of the removed sector
-        closeT1 = np.abs((np.mod(badT-T1,2*np.pi)))<np.abs((np.mod(badT-T2,2*np.pi)))
-        badT[closeT1] = T1
-        badT[~closeT1] = T2
-        
-        badX,badY = vf.ToCart(badT,np.multiply((badR-lx+lz),np.abs(np.divide(meshVel_X[badPts],np.sqrt(meshVel_X[badPts]**2+meshVel_Y[badPts]**2)))))
-
-
-        TrajXcobad,TrajYcobad = dgf.Circle2Cone(trajX[badPts],trajY[badPts], self.Cone.Alpha, 0)
-        
-        TrajXcoBetter,TrajYcoBetter = dgf.Circle2Cone(badX, badY, self.Cone.Alpha, 0)
-        
-        tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_X[badPts],meshVel_Y[badPts],TrajXcobad,TrajYcobad, self.Cone.Alpha)
-        
-        meshVel_X[badPts],meshVel_Y[badPts] = dgf.VelCone2Circle(-np.abs(tmp_velX),np.zeros(np.shape(tmp_velY)), TrajXcoBetter,TrajYcoBetter, self.Cone.Alpha)
-        
-        
-        self.trajVXci = meshVel_X
-        self.trajVYci = meshVel_Y
-        
-        
-        # trajX[badPts] = badX
-        # trajY[badPts] = badY 
-        
-        self.trajX = trajX
-        self.trajY = trajY
+        self.trajX = meshPts_Xci
+        self.trajY = meshPts_Yci
         self.trajT = trajT
                        
         return
