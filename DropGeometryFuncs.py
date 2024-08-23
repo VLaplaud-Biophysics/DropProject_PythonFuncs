@@ -88,6 +88,11 @@ def Cone2CircleZ(X,Y,Z,Alpha):
 def VelCone2Circle(VX,VY,X,Y,Alpha):
     # (VX,VY) velocities to transform, X,Y origin of the velovcity vector, Alpha angle of the cone
     Theta,R = vf.ToCirc(X,Y,angle = 'rad')
+    
+    central = (Y == 0) & (X<0)
+    if np.size(Theta)== 1:
+        if central:
+            Theta = np.abs(Theta)
 
     a = (np.cos(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))+ np.sin(Theta)*np.sin(Theta*np.sin(Alpha))
     b = (np.sin(Theta)*np.cos(Theta*np.sin(Alpha))/np.sin(Alpha))- np.cos(Theta)*np.sin(Theta*np.sin(Alpha))

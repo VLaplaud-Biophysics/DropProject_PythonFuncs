@@ -329,8 +329,8 @@ class Drop:
         self.meshYFull = Ygrid # in cone config
         self.meshZFull = Zgrid # in cone config
         
-        self.meshX = XgridMidBord # in cone config
-        self.meshY = YgridMidBord # in cone config
+        self.meshX =  XgridMidBord # in cone config
+        self.meshY =  YgridMidBord # in cone config
         self.meshH = dgf.SphereH(self.Rdrop,self.meshX,self.meshY,self.Xd)
         
         self.meshZmin = -self.meshH/2
@@ -525,7 +525,8 @@ class Impact:
         ## simulate trajectories
         if not self.MISSED:
             self.compute_velocity_ini()
-            self.compute_traj(np.linspace(0,60,3000))
+            Time = 60
+            self.compute_traj(np.linspace(0,Time,Time*50))
     
     ###############################################################################
     #                                                                             #
@@ -567,8 +568,8 @@ class Impact:
     
                 
                 
-                self.oriX = meshXci[np.argmax(self.meshH)]
-                self.oriY = meshYci[np.argmax(self.meshH)]
+                self.oriX = np.average(meshXci,weights=self.meshH**5)
+                self.oriY = np.average(meshYci,weights=self.meshH**5)
                 
                 mesh1 = meshXci-meshXci[np.argmax(self.meshH)]
                 mesh2 = meshYci-meshYci[np.argmax(self.meshH)]
@@ -756,61 +757,126 @@ class Impact:
             #######################################################################
             ###### Finding points that crossed the removed sector 
             
-            # trajectory points on it-1 and ith image
+            # trajectory points on  ith image
             
-            trajXci = meshPts_Xci[it-1,:]
-            trajYci = meshPts_Yci[it-1,:]
             
-            trajXci1 = meshPts_Xci[it,:]
-            trajYci1 = meshPts_Yci[it,:]
+            trajXci1 = meshPts_Xci[it,:].copy()
+            trajYci1 = meshPts_Yci[it,:].copy()
 
             # expression in radial coordinates
            
-            T,r =  vf.ToCirc(trajXci1,np.abs(trajYci1),angle='rad')
+            T,r =  vf.ToCirc(trajXci1,trajYci1,angle='rad')
             
             T = np.mod(T,2*np.pi)
             
             # Finding points that crossed the sector border
             
             Beta = self.Cone.Beta # angle of sector to remove
+            
+            ### Circle config : removed sector to form a cone 
+                    
+            T1 = np.pi-Beta/2
+            T2 = np.pi+Beta/2
+            
+            
+            badPts1 = (T > T1) & (T<np.pi)
+            badPts2 = (T < T2) & (T>np.pi)
+            badPts = badPts1 | badPts2
 
+            
+            if not all(badPts==False):
+                
+                sectorX,sectorY = vf.ToCart(T1,self.Cone.Rcircle,angle = 'rad')
+                sectorX2,sectorY2 = vf.ToCart(T2,self.Cone.Rcircle,angle = 'rad')
+                
+                # plt.figure(dpi=300)
+                # plt.plot(0,0,'*y')
+                # plt.quiver(0,0,sectorX,sectorY,color='gold',angles='xy')
+                # plt.quiver(0,0,sectorX2,sectorY2,color='gold',angles='xy')
+                # plt.plot([0,sectorX],[0,sectorY],'y-')
+                # plt.plot([0,sectorX2],[0,sectorY2],'y-')
+                # plt.scatter(meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts],s=17,zorder=1, color = 'r')
+                # plt.scatter(meshPts_Xci[it,:][~badPts], meshPts_Yci[it,:][~badPts],s=10,zorder=1, color = 'g')
+            
+                # plt.quiver(meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts],meshVel_Xci[it-1,:][badPts],meshVel_Yci[it-1,:][badPts],color='r',angles='xy')
+                
+                
+                 
+                if not all(badPts1==False):
+                    
+                    # position correction in circle config            
+                    
+                    meshPts_Xci[it,:][badPts1], meshPts_Yci[it,:][badPts1] = vf.ToCart(T1, r[badPts1], angle='rad') 
+                    
+                    # plt.scatter(meshPts_Xci[it,:][badPts1], meshPts_Yci[it,:][badPts1],s=13,zorder=2,color = 'c')
+                
+                    
+                    # Points that have crossed, corrected expressed in cone configuration
+                    
+                    trajXco1, trajYco1 = dgf.Circle2Cone(meshPts_Xci[it,:][badPts1], meshPts_Yci[it,:][badPts1], self.Cone.Alpha) 
+                    
+               
+                    a = [[x,y] for x,y in zip(meshVel_Xci[it-1,:][badPts1],meshVel_Yci[it-1,:][badPts1])]
+                    b = [sectorX,sectorY]
+                    # velocity correction
+                    
+                    
+                    
+                    velX_new1 = np.sign(np.dot(a,b))*sectorX/np.sqrt(np.square(sectorX)+np.square(sectorY))*np.sqrt(np.square(meshVel_Xci[it-1,:][badPts1])+np.square(meshVel_Yci[it-1,:][badPts1]))
+                    velY_new1 = np.sign(np.dot(a,b))*sectorY/np.sqrt(np.square(sectorX)+np.square(sectorY))*np.sqrt(np.square(meshVel_Xci[it-1,:][badPts1])+np.square(meshVel_Yci[it-1,:][badPts1]))
+                    
+                    # print(np.square(meshVel_Xci[it-1,:][badPts1])+np.square(meshVel_Yci[it-1,:][badPts1]))
+                    # print(np.shape(meshVel_Yci[it-1,:][badPts1]))
+                    # print(np.shape(velX_new1))
+                    # print(np.shape(velY_new1))
+                    # print(sectorX)
+                    velX_new1[(np.sign(np.dot(a,b))<0)&(trajXco1<0)] = 0
+                    velY_new1[(np.sign(np.dot(a,b))<0)&(trajXco1<0)] = 0
+                    
+                    # plt.quiver(meshPts_Xci[it,:][badPts1], meshPts_Yci[it,:][badPts1],velX_new1,velY_new1,color='c',angles='xy')
+                    
+                    
+                    
+                    meshVel_Xci[it,:][badPts1] = velX_new1.copy()
+                    meshVel_Yci[it,:][badPts1] = velY_new1.copy()
+                    
+                
+                if not all(badPts2==False):
+                    
+                    
+                    # position correction in circle config 
+                    meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2] = vf.ToCart(T2, r[badPts2], angle='rad') 
+                
+                
+                    
+                    # plt.scatter(meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2],s=13,zorder=2,color = 'c')
+                
+                    
+                    # Points that have crossed, corrected expressed in cone configuration
+                    
+                    trajXco12, trajYco12 = dgf.Circle2Cone(meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2], self.Cone.Alpha) 
+                    
+                    a2 = [[x,y] for x,y in zip(meshVel_Xci[it-1,:][badPts2],meshVel_Yci[it-1,:][badPts2])]
+                    b2 = [sectorX2,sectorY2]
+                    # velocity correction
+                    
+                    velX_new2 = np.sign(np.dot(a2,b2))*sectorX2/np.sqrt(np.square(sectorX2)+np.square(sectorY2))*np.sqrt(np.square(meshVel_Xci[it-1,:][badPts2])+np.square(meshVel_Yci[it-1,:][badPts2]))
+                    velY_new2 = np.sign(np.dot(a2,b2))*sectorY2/np.sqrt(np.square(sectorX2)+np.square(sectorY2))*np.sqrt(np.square(meshVel_Xci[it-1,:][badPts2])+np.square(meshVel_Yci[it-1,:][badPts2]))
+                    
+                    
+                    
+                    velX_new2[(np.sign(np.dot(a2,b2))<0)&(trajXco12<0)] = 0
+                    velY_new2[(np.sign(np.dot(a2,b2))<0)&(trajXco12<0)] = 0
+                    
+                    # plt.quiver(meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2],velX_new2,velY_new2,color='c',angles='xy')
+                    
+                    # plt.show()
+                    
+                    meshVel_Xci[it,:][badPts2] = velX_new2
+                    meshVel_Yci[it,:][badPts2] = velY_new2
+                    
+                
 
-            T1 = np.mod(np.pi - Beta/2,2*np.pi)
-            T2 = np.mod(np.pi + Beta/2,2*np.pi)
-            
-            if T1>T2:
-                goodPts = ((T < T1) & (T > T2))            
-            else:                
-                goodPts = ((T < T1) | (T > T2))
-            
-            badPts = ~goodPts
-            
-            # Points that have crossed (and their previous points), expressed in cone configuration
-            
-            trajXco, trajYco = dgf.Circle2Cone(trajXci[badPts],trajYci[badPts], self.Cone.Alpha) 
-            trajXco1, trajYco1 = dgf.Circle2Cone(trajXci1[badPts],trajYci1[badPts], self.Cone.Alpha) 
-            
-            # velocity at crossing
-            
-            tmp_velX = (trajXco1-trajXco)/(Time[it]-Time[it-1])
-            
-            
-            tmp_velY = (trajYco1-trajYco)/(Time[it]-Time[it-1])
-            
-            
-            # Corrections : Y pos = 0 to put on the line of the jet, VY = to only move in the direction of the jet
-            
-            
-            meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts] = dgf.Cone2Circle(trajXco,trajYco*0, self.Cone.Alpha) 
-            
-            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY*0,trajXco1,trajYco1*0, self.Cone.Alpha)
-            
-            
-            velX_new[(tmp_velX>0)&(trajXco1<0)] = 0
-            velY_new[(tmp_velX>0)&(trajXco1<0)] = 0
-            
-            meshVel_Xci[it,:][badPts] = velX_new
-            meshVel_Yci[it,:][badPts] = velY_new
             
             
             
@@ -827,10 +893,8 @@ class Impact:
             Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha)
             
             # velocity of the points in the cone configuration
-            
-            tmp_velX = (Xco1-Xco)/(Time[it]-Time[it-1])
-            
-            tmp_velY = (Yco1-Yco)/(Time[it]-Time[it-1])
+         
+            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_Xci[it-1,:],meshVel_Yci[it-1,:],Xco,Yco, self.Cone.Alpha)
             
             
             # transfert in circle config
@@ -841,7 +905,6 @@ class Impact:
             meshVel_Xci[it,:][out_mask] = velX_new[out_mask]
             meshVel_Yci[it,:][out_mask] = velY_new[out_mask]
             
-            # fieldnormCi = np.sqrt(np.square(meshVel_Xci[it,:])+np.square(meshVel_Yci[it,:]))
             
 
         
@@ -926,72 +989,72 @@ class Impact:
         ########################### DISPLAY
                
         
-        # tx = np.linspace(0,2*np.pi,100)
+        tx = np.linspace(0,2*np.pi,100)
         
         
-        # f = plt.figure(dpi=200)
+        f = plt.figure(dpi=200)
         
-        # plt.plot(self.Cone.Rcone*np.cos(tx),self.Cone.Rcone*np.sin(tx),'g')
+        plt.plot(self.Cone.Rcone*np.cos(tx),self.Cone.Rcone*np.sin(tx),'g')
         
-        # plt.quiver(OutXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutYco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelYco[~(InJetMask|OutJetMask|InSecondJetMask)],color='b')
+        plt.quiver(OutXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutYco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelYco[~(InJetMask|OutJetMask|InSecondJetMask)],color='b')
         
-        # plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='r')
+        plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='r')
         
-        # plt.scatter(OutXco,OutYco,color = 'c',s=4)
-        # plt.scatter(self.meshX,self.meshY,color = 'c',label='Non jet trajectories',s=4)
+        plt.scatter(OutXco,OutYco,color = 'c',s=4)
+        plt.scatter(self.meshX,self.meshY,color = 'c',label='Non jet trajectories',s=4)
         
-        # plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='crimson',s=4.1,zorder=10)
-        # plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'crimson',label='Jet formed inside the cone',s=4.1,zorder=10)
-        
-        
-        # plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='blueviolet',s=4.1,zorder=10)
-        # plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'blueviolet',s=4.1,label='Jet formed outside the cone',zorder=10)
-        
-        # plt.scatter(OutXco[InSecondJetMask],OutYco[InSecondJetMask],color='gold',s=4.1,zorder=10)
-        # plt.scatter(self.meshX[InSecondJetMask],self.meshY[InSecondJetMask],color = 'yellow',label='Secondary jet',s=4.1)
+        plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='crimson',s=4.1,zorder=10)
+        plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'crimson',label='Jet formed inside the cone',s=4.1,zorder=10)
         
         
+        plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='blueviolet',s=4.1,zorder=10)
+        plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'blueviolet',s=4.1,label='Jet formed outside the cone',zorder=10)
         
-        # ax = plt.gca()
-        # ax.set_xlim([-1.5*self.Cone.Rcone,1.2*self.Cone.Rcone])
-        # ax.set_ylim([-1.2*self.Cone.Rcone,1.2*self.Cone.Rcone])
-        # ax.set_aspect('equal')
-        
-        # plt.legend(fontsize='xx-small')
-        
-        # f.tight_layout()
-        # plt.show()
-        
-        
-        # f = plt.figure(dpi=200)
-        
-        # plt.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),'g')
-        
-        # # plt.quiver(OutX[~(InJetMask|OutJetMask)],OutY[~(InJetMask|OutJetMask)],OutVelXnorm[~(InJetMask|OutJetMask)],OutVelYnorm[~(InJetMask|OutJetMask)],color='w')
-        
-        # # plt.quiver(OutX[InJetMask|OutJetMask],OutY[InJetMask|OutJetMask],OutVelXnorm[InJetMask|OutJetMask],OutVelYnorm[InJetMask|OutJetMask],color='c',scale=50)
-        
-        # plt.scatter(OutX,OutY,color = 'b',label='Non jet trajectories',s=4)
-        # plt.scatter(self.meshXci,self.meshYci,color = 'b',s=4)
-        
-        # plt.scatter(OutX[InJetMask],OutY[InJetMask],color='r',label='Jet formed inside the cone',s=4.1)
-        # plt.scatter(self.meshXci[InJetMask],self.meshYci[InJetMask],color = 'r',s=4.1)
-        
-        
-        # plt.scatter(OutX[OutJetMask],OutY[OutJetMask],color='m',label='Jet formed outside the cone',s=4.1)
-        # plt.scatter(self.meshXci[OutJetMask],self.meshYci[OutJetMask],color = 'm',s=4.1)
-        # # plt.scatter(trajX[:,inter],trajY[:,inter],color = 'w',s=1.1)
-        # # plt.scatter(trajX[:,OutJetMask],trajY[:,OutJetMask],color = 'c',s=1.1)
+        plt.scatter(OutXco[InSecondJetMask],OutYco[InSecondJetMask],color='gold',s=4.1,zorder=10)
+        plt.scatter(self.meshX[InSecondJetMask],self.meshY[InSecondJetMask],color = 'yellow',label='Secondary jet',s=4.1)
         
         
         
-        # ax = plt.gca()
-        # ax.set_xlim([-1.5*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
-        # ax.set_ylim([-1.2*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
-        # ax.set_aspect('equal')
+        ax = plt.gca()
+        ax.set_xlim([-1.5*self.Cone.Rcone,1.2*self.Cone.Rcone])
+        ax.set_ylim([-1.2*self.Cone.Rcone,1.2*self.Cone.Rcone])
+        ax.set_aspect('equal')
         
-        # f.tight_layout()
-        # plt.show()
+        plt.legend(fontsize='xx-small')
+        
+        f.tight_layout()
+        plt.show()
+        
+        
+        f = plt.figure(dpi=200)
+        
+        plt.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),'g')
+        
+        # plt.quiver(OutX[~(InJetMask|OutJetMask)],OutY[~(InJetMask|OutJetMask)],OutVelXnorm[~(InJetMask|OutJetMask)],OutVelYnorm[~(InJetMask|OutJetMask)],color='w')
+        
+        # plt.quiver(OutX[InJetMask|OutJetMask],OutY[InJetMask|OutJetMask],OutVelXnorm[InJetMask|OutJetMask],OutVelYnorm[InJetMask|OutJetMask],color='c',scale=50)
+        
+        plt.scatter(OutX,OutY,color = 'b',label='Non jet trajectories',s=4)
+        plt.scatter(self.meshXci,self.meshYci,color = 'b',s=4)
+        
+        plt.scatter(OutX[InJetMask],OutY[InJetMask],color='r',label='Jet formed inside the cone',s=4.1)
+        plt.scatter(self.meshXci[InJetMask],self.meshYci[InJetMask],color = 'r',s=4.1)
+        
+        
+        plt.scatter(OutX[OutJetMask],OutY[OutJetMask],color='m',label='Jet formed outside the cone',s=4.1)
+        plt.scatter(self.meshXci[OutJetMask],self.meshYci[OutJetMask],color = 'm',s=4.1)
+        # plt.scatter(trajX[:,inter],trajY[:,inter],color = 'w',s=1.1)
+        # plt.scatter(trajX[:,OutJetMask],trajY[:,OutJetMask],color = 'c',s=1.1)
+        
+        
+        
+        ax = plt.gca()
+        ax.set_xlim([-1.5*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
+        ax.set_ylim([-1.2*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
+        ax.set_aspect('equal')
+        
+        f.tight_layout()
+        plt.show()
         
     
         ########################### DISPLAY END
