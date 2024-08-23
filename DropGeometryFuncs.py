@@ -45,18 +45,24 @@ def coneGeometry(Rcone,Alpha):
 ####
 # 2. Transformation of 2D coordinate from cone configuration to circle configuration and vice versa 
 
-def Cone2Circle(X,Y,Alpha,Ad):
-    # (X,Y) points to transform, Alpha angle of the cone, Ad angle of removed sector bissecant (cone config)
+def Cone2Circle(X,Y,Alpha):
+    # (X,Y) points to transform, Alpha angle of the cone,
+    central = (Y == 0) & (X<0)
     A,R = vf.ToCirc(X,Y,angle = 'rad')
-    Xnew,Ynew = vf.ToCart((A-Ad)*np.sin(Alpha)+Ad,R/np.sin(Alpha),angle = 'rad')
+    if np.size(A)== 1:
+        if central:
+            A = np.abs(A)
+    else:
+        A[central] = np.abs(A[central])
+    Xnew,Ynew = vf.ToCart((A)*np.sin(Alpha),R/np.sin(Alpha),angle = 'rad')
 
     return(Xnew,Ynew)
 
 
-def Circle2Cone(X,Y,Alpha,Ad): 
-    # (X,Y) points to transform, Alpha angle of the cone, Ad angle of removed sector bissecant (circle config)
+def Circle2Cone(X,Y,Alpha): 
+    # (X,Y) points to transform, Alpha angle of the cone
     A,R = vf.ToCirc(X,Y,angle = 'rad')
-    Xnew,Ynew = vf.ToCart((A-Ad)/np.sin(Alpha)+Ad,R*np.sin(Alpha),angle = 'rad')
+    Xnew,Ynew = vf.ToCart((A)/np.sin(Alpha),R*np.sin(Alpha),angle = 'rad')
     
     return(Xnew,Ynew)
 

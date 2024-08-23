@@ -102,6 +102,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     DropSpeed = 5 # [mm/ms]
     
     JetFracs = np.empty(np.shape(meshA))
+    SecJetFracs = np.empty(np.shape(meshA))
     JetMass = np.empty(np.shape(meshA))
     JetNRJ = np.empty(np.shape(meshA))
     JetVel = np.empty(np.shape(meshA))
@@ -121,6 +122,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         print('Clearing previous figure folder...', end = '')
         
         shutil.rmtree(savepath + '\JetFrac\\')   
+        shutil.rmtree(savepath + '\SecJetFrac\\')   
         shutil.rmtree(savepath + '\VolRatio\\')   
         shutil.rmtree(savepath + '\JetVel\\')   
         shutil.rmtree(savepath + '\EnRJ\\')   
@@ -137,6 +139,10 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     os.makedirs(savepath + '\JetFrac\FixedAngle',exist_ok=True) # create folder
     os.makedirs(savepath + '\JetFrac\FixedDrop',exist_ok=True) # create folder
     os.makedirs(savepath + '\JetFrac\FixedDist',exist_ok=True) # create folder
+    
+    os.makedirs(savepath + '\SecJetFrac\FixedAngle',exist_ok=True) # create folder
+    os.makedirs(savepath + '\SecJetFrac\FixedDrop',exist_ok=True) # create folder
+    os.makedirs(savepath + '\SecJetFrac\FixedDist',exist_ok=True) # create folder
 
     os.makedirs(savepath + '\VolRatio\FixedAngle',exist_ok=True) # create folder
     os.makedirs(savepath + '\VolRatio\FixedDrop',exist_ok=True) # create folder
@@ -174,6 +180,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         print('Loading previous simulations results...', end = '')
         
         JetFracs = np.load(savepath + '\Data_JetFracs_' + str(npts) + 'npts.npy')
+        SecJetFracs = np.load(savepath + '\Data_SecJetFracs_' + str(npts) + 'npts.npy')
         JetMass = np.load(savepath + '\Data_JetMass_' + str(npts) + 'npts.npy')
         JetNRJ = np.load(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy')
         JetVel = np.load(savepath + '\Data_JetVel_' + str(npts) + 'npts.npy')
@@ -215,7 +222,10 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 
                 Drop = dgc.Drop(dd/2,oc,71,DropSpeed) # ~5000 points in the drop
                 Impact = Cone.impact(Drop,oriType,velIni,meshType)
-                JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.get_JetFrac()
+                
+                
+                JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.get_JetFrac()[0]
+                SecJetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.get_JetFrac()[1]
                 NRJ_tmp = Impact.compute_JetNRJ()
                 JetNRJ[idx[0][0],idx[0][1],idx[0][2]] = NRJ_tmp[0]
                 JetVel[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_JetVel()
@@ -225,12 +235,13 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = Impact.SheetOpening()[0]
                 ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = Impact.compute_ShapeFactor()
                 
-                JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()/100*Drop.Mass
+                JetMass[idx[0][0],idx[0][1],idx[0][2]] = Impact.VolFrac/100*Impact.get_JetFrac()[0]/100*Drop.Mass
                 
 
             else:
                 
                 JetFracs[idx[0][0],idx[0][1],idx[0][2]] = np.nan
+                SecJetFracs[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 SheetWide[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 ShapeFactor[idx[0][0],idx[0][1],idx[0][2]] = np.nan
                 DispertionDist[idx[0][0],idx[0][1],idx[0][2]] = np.nan
@@ -243,6 +254,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
        
         ShapeFactor[np.isnan(ShapeFactor)]=0 
         np.save(savepath + '\Data_JetFracs_' + str(npts) + 'npts.npy',JetFracs)
+        np.save(savepath + '\Data_SecJetFracs_' + str(npts) + 'npts.npy',SecJetFracs)
         np.save(savepath + '\Data_JetMass_' + str(npts) + 'npts.npy',JetMass)
         np.save(savepath + '\Data_JetNRJ_' + str(npts) + 'npts.npy',JetNRJ)
         np.save(savepath + '\Data_JetVel_' + str(npts) + 'npts.npy',JetVel)
@@ -269,6 +281,20 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     fa.tight_layout()
     
     fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_JetFrac.png')
+
+    plt.close(fa)
+    
+    SJFAnglesMaxes = np.nanmax(SecJetFracs,axis=(0,2))
+    
+    fa,axa = plt.subplots(dpi=200)
+    axa.set_title('Maximum second jet fraction per angle')
+    axa.set_xlabel('Angle (°)')
+    axa.set_ylabel('Max second jetFrac (%)')
+    axa.plot(Angles/(2*np.pi)*360,SJFAnglesMaxes,'-og',ms = 2,lw = 1.5)
+    
+    fa.tight_layout()
+    
+    fa.savefig(savepath + '\FxdA_'+ label + '_'+str(int(npts))+'npts_MaxCurve_SecJetFrac.png')
 
     plt.close(fa)
     
@@ -324,6 +350,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     axa.plot(Angles/(2*np.pi)*360,100*JNRJAnglesMaxes/np.max(JNRJAnglesMaxes),'-ow',ms = 2,lw = 1.5,label = 'Max energy' )
     axa.plot(Angles/(2*np.pi)*360,100*DDAnglesMaxes/np.max(DDAnglesMaxes),'-or',ms = 2,lw = 1.5,label = 'Max dispertion')
     axa.plot(Angles/(2*np.pi)*360,100*JFAnglesMaxes/np.max(JFAnglesMaxes),'-ob',ms = 2,lw = 1.5,label = 'Max jetFrac')
+    axa.plot(Angles/(2*np.pi)*360,100*SJFAnglesMaxes/np.max(SJFAnglesMaxes),'-og',ms = 2,lw = 1.5,label = 'Max SecjetFrac')
     axa.plot(Angles/(2*np.pi)*360,100*JVelAnglesMaxes/np.max(JVelAnglesMaxes),'-om',ms = 2,lw = 1.5, label = 'Max jetVel')
     plt.legend()
     
@@ -361,6 +388,32 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         
         f0.savefig(savepath + '\JetFrac\FixedAngle\FxdADgm_'
                     + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_JetFrac.png')
+
+        plt.close(f0)
+            
+        # Impact fraction in jet
+        f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax0.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
+        ax0.set_xlabel('Offcent' + NormStr)
+        ax0.set_ylabel('DropDiam' + NormStr)
+        
+        ax0.set_xlim([0,np.max(RelOffCents)])
+        ax0.set_ylim([0,np.max(RelDropDiams)])
+    
+
+        sc0 = ax0.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=SecJetFracs[:,ia,:],vmin=0, vmax = 100,
+                          cmap='PuOr',marker='s',s=pointSize,zorder=2)
+
+        cbar0 = plt.colorbar(sc0)
+        cbar0.set_label('Impact fraction in the second jet (%)')
+        
+        # ax0.set_aspect('equal')
+        
+
+        f0.tight_layout()
+        
+        f0.savefig(savepath + '\SecJetFrac\FixedAngle\FxdADgm_'
+                    + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_SecJetFrac.png')
 
         plt.close(f0)
         
@@ -567,6 +620,27 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         plt.close(f0)
         
         
+        # Impact fraction in second jet
+        f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax0.set_title('DropDiam_Norm : ' + str(round(rdd*10)/10))
+        ax0.set_xlabel('Offcent' + NormStr)
+        ax0.set_ylabel('Cone angle [°]')
+        ax0.set_xlim([0,np.max(RelOffCents)])
+        
+
+        sc0 = ax0.scatter(2*meshOC[idd,:,:]/Normalisation,meshA[idd,:,:]/(2*np.pi)*360,c=SecJetFracs[idd,:,:],vmin=0, vmax = 100,cmap='PuOr'
+                          ,marker='s',s=pointSize)
+
+        cbar0 = plt.colorbar(sc0)
+        cbar0.set_label('Impact fraction in the second jet (%)')
+        f0.tight_layout()
+        
+        f0.savefig(savepath + '\SecJetFrac\FixedDrop\FxdDrDgm_'
+            + label + '_'+str(int(npts))+'npts_' + str(round(rdd*10)/10) + 'SR_SJF.png')
+
+        plt.close(f0)
+        
+        
         print('Making and saving figures     ',end='\r')
 
 
@@ -733,6 +807,26 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         
         f0.savefig(savepath + '\JetFrac\FixedDist\FxdDiDgm_'
           + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_JetFrac.png')
+  
+        plt.close(f0)
+        
+        
+    
+        # Impact fraction in second jet
+        f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax0.set_title('Offcent_Norm: ' + str(round(roc*10)/10))
+        ax0.set_xlabel('DropDiam' + NormStr)
+        ax0.set_ylabel('Cone angle [°]')
+        ax0.set_xlim([0,np.max(RelDropDiams)])
+        
+        sc0 = ax0.scatter(meshDD[:,:,ioc]/Normalisation,meshA[:,:,ioc]/(2*np.pi)*360,c=SecJetFracs[:,:,ioc],vmin=0, vmax = 100,cmap='PuOr',marker='s',s=pointSize)
+    
+        cbar0 = plt.colorbar(sc0)
+        cbar0.set_label('Impact fraction in the jet (%)')
+        f0.tight_layout()
+        
+        f0.savefig(savepath + '\SecJetFrac\FixedDist\FxdDiDgm_'
+          + label + '_'+str(int(npts))+'npts_' + str(round(roc*10)/10) + 'OC_SecJetFrac.png')
   
         plt.close(f0)
         
@@ -929,6 +1023,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
         
         impactVolumes = np.load(savepath + '\Data_impactVolumes.npy')
         jetVolumes = np.load(savepath + '\Data_jetVolumes.npy')
+        SecjetVolumes = np.load(savepath + '\Data_SecjetVolumes.npy')
         efficiency = np.load(savepath + '\Data_efficiency.npy')
         jetNRJs = np.load(savepath + '\Data_jetNRJs.npy')
         jetVels = np.load(savepath + '\Data_jetVels.npy')
@@ -943,6 +1038,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
         os.makedirs(savepath,exist_ok=True) # create folder
 
         jetVolumes = np.empty(np.shape(meshCA))
+        SecjetVolumes = np.empty(np.shape(meshCA))
         impactVolumes = np.empty(np.shape(meshCA))
         efficiency = np.empty(np.shape(meshCA))
         DispersalDists = np.empty(np.shape(meshCA))
@@ -972,6 +1068,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
                 cr = np.sqrt(ConeSurface*np.sin(a)/np.pi)
     
                 jetVolume = np.empty(np.shape(dropRadii))
+                SecjetVolume = np.empty(np.shape(dropRadii))
                 impactVolume = np.empty(np.shape(dropRadii))
                 jetNRJ = np.empty(np.shape(dropRadii))
                 jetVel = np.empty(np.shape(dropRadii))
@@ -994,7 +1091,9 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     
                         impactVolume[di] = I.VolFrac/100*4/3*np.pi*(ds/1000)**3
     
-                        jetVolume[di] = impactVolume[di]*I.get_JetFrac()/100
+                        jetVolume[di] = impactVolume[di]*I.get_JetFrac()[0]/100
+                                          
+                        SecjetVolume[di] = impactVolume[di]*I.get_JetFrac()[1]/100
     
                         jetNRJ[di] = I.compute_JetNRJ()[0]
                         
@@ -1013,6 +1112,8 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
     
                         jetVolume[di] = 0
     
+                        SecjetVolume[di] = 0
+    
                         jetNRJ[di] = 0
                         
                         jetVel[di] = 0
@@ -1024,6 +1125,8 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
                 impactVolumes[ids,ia] = np.sum(impactVolume) # in [m^3]
     
                 jetVolumes[ids,ia] = np.sum(jetVolume) # in [m^3]
+    
+                SecjetVolumes[ids,ia] = np.sum(SecjetVolume) # in [m^3]
     
                 efficiency[ids,ia] = np.sum(jetVolume)/np.sum(impactVolume)*100 # in %
     
@@ -1053,6 +1156,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
                 
         np.save(savepath + '\Data_impactVolumes.npy',impactVolumes)
         np.save(savepath + '\Data_jetVolumes.npy',jetVolumes)
+        np.save(savepath + '\Data_SecjetVolumes.npy',SecjetVolumes)
         np.save(savepath + '\Data_efficiency.npy',efficiency)
         np.save(savepath + '\Data_DispersalDist.npy',DispersalDists)
         np.save(savepath + '\Data_DispersalHeight.npy',DispersalHeights)
@@ -1096,6 +1200,23 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
 
     f1.savefig(savepath + '\OptiDgm_'
                 + label + '_'+str(int(npts))+'npts_JetVolume.png')
+
+    plt.close(f1)
+    
+     # Jet secondaire volume
+    f1,ax1 = plt.subplots(dpi=150,figsize = (7,6)) 
+    ax1.set_title('Jet volume for random rain of ' + str(ndrops) + ' drops')
+    ax1.set_xlabel('Cone angle (°)')
+    ax1.set_ylabel('Cone area / MedianDrop area')
+
+    sc1 = ax1.scatter(meshCA/(2*np.pi)*360,ConeSurface/(MedianDropR**2*np.pi*4)/meshDS**2,c=SecjetVolumes*1e6/TotalVolume*100,vmin=0,cmap='PuOr',s=pointSize,marker='s')
+
+    cbar1 = plt.colorbar(sc1)
+    cbar1.set_label('Total volume ejected as jets (% of total rain volume)')
+    f1.tight_layout()
+
+    f1.savefig(savepath + '\OptiDgm_'
+                + label + '_'+str(int(npts))+'npts_SecJetVolume.png')
 
     plt.close(f1)
 

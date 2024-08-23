@@ -77,12 +77,12 @@ class Cone:
     def Cone2Circle(self,X,Y):
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (cone config)
     
-        return(dgf.Cone2Circle(X,Y,self.Alpha,0))
+        return(dgf.Cone2Circle(X,Y,self.Alpha))
     
     def Circle2Cone(self,X,Y): 
         # (X,Y) points to transform, Alpha angle of the cone, Ad = 0 angle of removed sector bissecant (circle config)
         
-        return(dgf.Circle2Cone(X,Y,self.Alpha,0))
+        return(dgf.Circle2Cone(X,Y,self.Alpha))
     
     
     
@@ -275,9 +275,7 @@ class Drop:
         self.Rdrop = radius
         
         self.Xd = offcent
-        
-        self.Yd = 0
-        
+               
         self.Vel = vel
         
         self.Npts = npts
@@ -291,7 +289,7 @@ class Drop:
         
         ## Carthesian fixed mesh + borderpoints
         
-        Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
+        Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,-self.Rdrop,self.Rdrop
         
         Xs = np.linspace(Xmin, Xmax, npts)
         Ys = np.linspace(Ymin, Ymax, npts)
@@ -301,20 +299,22 @@ class Drop:
         
         Xgrid,Ygrid,Zgrid = np.meshgrid(Xs,Ys,Zs)
         
+        Xgrid2D,Ygrid2D = np.meshgrid(Xs,Ys)
+        
 
         XgridF = Xgrid.flatten()
         YgridF = Ygrid.flatten()
         ZgridF = Zgrid.flatten()
         
         
-        XgridMid = XgridF[ZgridF ==np.min(np.abs(ZgridF))]
-        YgridMid = YgridF[ZgridF ==np.min(np.abs(ZgridF))]
+        XgridMid = Xgrid2D.flatten()
+        YgridMid = Ygrid2D.flatten()
 
         Agrid,Rgrid = vf.ToCirc(XgridMid,YgridMid)
 
-        isDrop = self.IsIn(Rgrid,Agrid)
+        isDrop = np.sqrt(np.square(XgridMid-self.Xd)+np.square(YgridMid)) < self.Rdrop
         
-        Rmax = self.Rdrop
+        Rmax = self.Rdrop*0.999
         
         RgridBorder = np.ones((1,2*npts))*Rmax
         AgridBorder = np.linspace(0,2*np.pi,2*npts)
@@ -322,7 +322,7 @@ class Drop:
         XgridBorder,YgridBorder = vf.ToCart(AgridBorder,RgridBorder,angle='rad')
         
         XgridMidBord = np.append(XgridMid[isDrop],XgridBorder+self.Xd)
-        YgridMidBord = np.append(YgridMid[isDrop],YgridBorder+self.Yd)
+        YgridMidBord = np.append(YgridMid[isDrop],YgridBorder)
         
 
         self.meshXFull = Xgrid # in cone config
@@ -358,7 +358,7 @@ class Drop:
     
     def Coordinates(self):
         
-        return(self.Xd,self.Yd)
+        return(self.Xd,0)
         
     def Parameters(self):
         
@@ -366,7 +366,7 @@ class Drop:
     
     def IsIn(self,R,Theta): 
         
-        isInDrop = R**2 - 2*R*(self.Xd*np.cos(Theta)+self.Yd*np.sin(Theta)) + self.Xd**2 + self.Yd**2 <= self.Rdrop**2
+        isInDrop = R**2 - 2*R*self.Xd*np.cos(Theta)+ self.Xd**2  <= self.Rdrop**2
         
         return(isInDrop)
         
@@ -384,7 +384,7 @@ class Drop:
         
             meshX,meshY,meshH = self.mesh() # Cone config
             
-            Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,self.Yd-self.Rdrop,self.Yd+self.Rdrop
+            Xmin, Xmax, Ymin, Ymax = self.Xd-self.Rdrop,self.Xd+self.Rdrop,-self.Rdrop,self.Rdrop
             
             Xs = np.linspace(Xmin*0.9, Xmax*1.1, 200)
             Ys = np.linspace(Ymin*0.9, Ymax*1.1, 200)
@@ -520,9 +520,12 @@ class Impact:
         
         self.VolFrac = dgf.volFrac([self.Drop.Xd],self.Drop.Rdrop,self.Cone.Rcone) 
                        
+
+        
         ## simulate trajectories
         if not self.MISSED:
-            self.compute_traj(np.linspace(0,6,300))
+            self.compute_velocity_ini()
+            self.compute_traj(np.linspace(0,60,3000))
     
     ###############################################################################
     #                                                                             #
@@ -576,7 +579,7 @@ class Impact:
                 
             elif self.oriType == 'Drop':
                 
-                self.oriX,self.oriY = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd)
+                self.oriX,self.oriY = self.Cone.Cone2Circle(self.Drop.Xd, 0)
                 
                 meshOXci = meshXci-self.oriX
                 meshOYci = meshYci-self.oriY
@@ -680,7 +683,7 @@ class Impact:
             self.meshVXci_tan = -np.cos(Tci)*self.veltan
             self.meshVYci_tan = -np.sin(Tci)*self.veltan
             
-            meshX,meshY = dgf.Circle2Cone(meshXci, meshYci, self.Cone.Alpha, 0)
+            meshX,meshY = dgf.Circle2Cone(meshXci, meshYci, self.Cone.Alpha)
             
             meshVX_tan,meshVY_tan = dgf.VelCircle2Cone(self.meshVXci_tan, self.meshVYci_tan, meshXci, meshYci, self.Cone.Alpha)
             
@@ -703,7 +706,6 @@ class Impact:
     
     def velocity_ini(self,velType):
         
-        self.compute_velocity_ini()
         
         if velType == 'norm':
             
@@ -764,22 +766,18 @@ class Impact:
 
             # expression in radial coordinates
            
-            T,r =  vf.ToCirc(trajXci1,trajYci1,angle='rad')
+            T,r =  vf.ToCirc(trajXci1,np.abs(trajYci1),angle='rad')
             
             T = np.mod(T,2*np.pi)
             
             # Finding points that crossed the sector border
             
             Beta = self.Cone.Beta # angle of sector to remove
+
+
+            T1 = np.mod(np.pi - Beta/2,2*np.pi)
+            T2 = np.mod(np.pi + Beta/2,2*np.pi)
             
-            Xi,Yi = self.Cone.Cone2Circle(self.Drop.Xd, self.Drop.Yd) # Drop center in circle config
-            
-            OffA = vf.ToCirc(self.Cone.Xc-Xi,self.Cone.Yc-Yi,angle = 'rad')[0] #angle between impact and center
-            
-            T1 = np.mod(OffA - Beta/2,2*np.pi)
-            XT1,YT1 = vf.ToCart(T1,self.Cone.Rcircle)
-            T2 = np.mod(OffA + Beta/2,2*np.pi)
-            XT2,YT2 = vf.ToCart(T2,self.Cone.Rcircle)
             if T1>T2:
                 goodPts = ((T < T1) & (T > T2))            
             else:                
@@ -789,12 +787,13 @@ class Impact:
             
             # Points that have crossed (and their previous points), expressed in cone configuration
             
-            trajXco, trajYco = dgf.Circle2Cone(trajXci[badPts],trajYci[badPts], self.Cone.Alpha, 0) 
-            trajXco1, trajYco1 = dgf.Circle2Cone(trajXci1[badPts],trajYci1[badPts], self.Cone.Alpha, 0) 
+            trajXco, trajYco = dgf.Circle2Cone(trajXci[badPts],trajYci[badPts], self.Cone.Alpha) 
+            trajXco1, trajYco1 = dgf.Circle2Cone(trajXci1[badPts],trajYci1[badPts], self.Cone.Alpha) 
             
             # velocity at crossing
             
             tmp_velX = (trajXco1-trajXco)/(Time[it]-Time[it-1])
+            
             
             tmp_velY = (trajYco1-trajYco)/(Time[it]-Time[it-1])
             
@@ -802,12 +801,18 @@ class Impact:
             # Corrections : Y pos = 0 to put on the line of the jet, VY = to only move in the direction of the jet
             
             
-            meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts] = dgf.Cone2Circle(trajXco1,trajYco1*0, self.Cone.Alpha, 0) 
+            meshPts_Xci[it,:][badPts], meshPts_Yci[it,:][badPts] = dgf.Cone2Circle(trajXco,trajYco*0, self.Cone.Alpha) 
             
-            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY*0,trajXco1,trajXco1*0, self.Cone.Alpha)
+            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY*0,trajXco1,trajYco1*0, self.Cone.Alpha)
+            
+            
+            velX_new[(tmp_velX>0)&(trajXco1<0)] = 0
+            velY_new[(tmp_velX>0)&(trajXco1<0)] = 0
             
             meshVel_Xci[it,:][badPts] = velX_new
             meshVel_Yci[it,:][badPts] = velY_new
+            
+            
             
             ############################################################
             ##### Correcting points trajectory outside of the cone
@@ -818,8 +823,8 @@ class Impact:
                        
             # Point position in cone configuration for it-1 and it
             
-            Xco,Yco = dgf.Circle2Cone(meshPts_Xci[it-1,:],meshPts_Yci[it-1,:], self.Cone.Alpha, 0) 
-            Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha, 0)
+            Xco,Yco = dgf.Circle2Cone(meshPts_Xci[it-1,:],meshPts_Yci[it-1,:], self.Cone.Alpha) 
+            Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha)
             
             # velocity of the points in the cone configuration
             
@@ -827,16 +832,10 @@ class Impact:
             
             tmp_velY = (Yco1-Yco)/(Time[it]-Time[it-1])
             
-            # tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_Xci[it-1,:],meshVel_Yci[it-1,:],Xco,Yco, self.Cone.Alpha)
             
             # transfert in circle config
             
             velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
-            
-            # chgmask = np.multiply(velX_new,meshVel_Xci[it-1,:]) < 0
-            
-            # velX_new[chgmask] = meshVel_Xci[it-1,:][chgmask]
-            # velY_new[chgmask] = meshVel_Yci[it-1,:][chgmask]
             
             
             meshVel_Xci[it,:][out_mask] = velX_new[out_mask]
@@ -893,37 +892,39 @@ class Impact:
             
             if all(ParticleMask == 0):
             
-                TimeOut[i] = 0 # trajectory never got out
+                TimeOut[i] = len(trajT)-1 # trajectory never got out
                 
             else:
                 
                 TimeOut[i] = np.min(OUT[ParticleMask,1]) # time index of first time out 
             
         
-        OutX = np.array([self.trajX[int(TimeOut[i]),i] for i in range(len(TimeOut))])
-        OutY =  np.array([self.trajY[int(TimeOut[i]),i] for i in range(len(TimeOut))])
+        OutX = np.array([trajX[int(TimeOut[i]),i] for i in range(len(TimeOut))])
+        OutY =  np.array([trajY[int(TimeOut[i]),i] for i in range(len(TimeOut))])
         
-        OutXco,OutYco = dgf.Circle2Cone(OutX, OutY, self.Cone.Alpha, 0)
+        OutXco,OutYco = dgf.Circle2Cone(OutX, OutY, self.Cone.Alpha)
+        OutRco = np.sqrt(np.square(OutXco)+np.square(OutYco))
         
-        InJetMask = (np.abs(OutYco)<0.01) & (OutXco<0)
+        InJetMask = (np.abs(OutYco)<0.01) & (OutXco<-self.Cone.Rcone)
+        InSecondJetMask = (np.abs(OutYco)<0.01) & (OutXco>-self.Cone.Rcone) & (OutXco<0)
         
         
         OutVelX = np.array([self.trajVXci[int(TimeOut[i]),i] for i in range(len(TimeOut))])
         OutVelY = np.array([self.trajVYci[int(TimeOut[i]),i] for i in range(len(TimeOut))])
         
+        
         OutVelXco,OutVelYco = dgf.VelCircle2Cone(OutVelX, OutVelY, OutXco, OutYco, self.Cone.Alpha)
         
-        OutJetMask =( np.abs(OutYco)>=0.01) & (OutYco*OutVelYco<0) & (OutXco<0)
+        OutVelXco[InSecondJetMask] = 0
+        OutVelYco[InSecondJetMask] = 0
+        
+        OutJetMask =( np.abs(OutYco)>=0.01) & (OutYco*OutVelYco<0) & (OutRco>self.Cone.Rcone)
         
         
         
         
         ########################### DISPLAY
-        
-        
-        # OutVelXnorm = np.divide(OutVelX,np.sqrt(np.square(OutVelX)+np.square(OutVelY)))
-        # OutVelYnorm= np.divide(OutVelY,np.sqrt(np.square(OutVelX)+np.square(OutVelY)))
-        
+               
         
         # tx = np.linspace(0,2*np.pi,100)
         
@@ -932,19 +933,22 @@ class Impact:
         
         # plt.plot(self.Cone.Rcone*np.cos(tx),self.Cone.Rcone*np.sin(tx),'g')
         
-        # plt.quiver(OutXco[~(InJetMask|OutJetMask)],OutYco[~(InJetMask|OutJetMask)],OutVelXco[~(InJetMask|OutJetMask)],OutVelYco[~(InJetMask|OutJetMask)],color='w')
+        # plt.quiver(OutXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutYco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelYco[~(InJetMask|OutJetMask|InSecondJetMask)],color='b')
         
-        # plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='c',scale=50)
+        # plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='r')
         
-        # plt.scatter(OutXco,OutYco,color = 'b',label='Non jet trajectories',s=4)
-        # plt.scatter(self.meshX,self.meshY,color = 'b',s=4)
+        # plt.scatter(OutXco,OutYco,color = 'c',s=4)
+        # plt.scatter(self.meshX,self.meshY,color = 'c',label='Non jet trajectories',s=4)
         
-        # plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='r',label='Jet formed inside the cone',s=4.1)
-        # plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'r',s=4.1)
+        # plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='crimson',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'crimson',label='Jet formed inside the cone',s=4.1,zorder=10)
         
         
-        # plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='m',label='Jet formed outside the cone',s=4.1)
-        # plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'm',s=4.1)
+        # plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='blueviolet',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'blueviolet',s=4.1,label='Jet formed outside the cone',zorder=10)
+        
+        # plt.scatter(OutXco[InSecondJetMask],OutYco[InSecondJetMask],color='gold',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[InSecondJetMask],self.meshY[InSecondJetMask],color = 'yellow',label='Secondary jet',s=4.1)
         
         
         
@@ -952,6 +956,8 @@ class Impact:
         # ax.set_xlim([-1.5*self.Cone.Rcone,1.2*self.Cone.Rcone])
         # ax.set_ylim([-1.2*self.Cone.Rcone,1.2*self.Cone.Rcone])
         # ax.set_aspect('equal')
+        
+        # plt.legend(fontsize='xx-small')
         
         # f.tight_layout()
         # plt.show()
@@ -994,6 +1000,12 @@ class Impact:
         inter = InJetMask|OutJetMask
         
         
+        fracmap = np.zeros(np.shape(self.meshXci))
+        
+        fracmap[inter] = 1
+        fracmap[InSecondJetMask] = 2
+        
+        self.fracmap = fracmap
         
         self.meshJFxci = self.meshXci[inter]
         self.meshJFyci = self.meshYci[inter] 
@@ -1006,19 +1018,23 @@ class Impact:
         
         
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
+        SecondaryJetFrac = np.round(np.sum(InSecondJetMask)/np.size(InSecondJetMask)*1000)/10
         
         
         
-        if (np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd))>(self.Drop.Rdrop+self.Cone.Rcone)) | ((self.Drop.Rdrop-np.sqrt(np.square(self.Drop.Xd)+np.square(self.Drop.Yd)))>(self.Cone.Rcone)):
+        if (self.Drop.Xd>(self.Drop.Rdrop+self.Cone.Rcone)) | ((self.Drop.Rdrop-self.Drop.Xd)>(self.Cone.Rcone)):
             JetFrac = 0
+            SecondaryJetFrac = 0
             
         self.JetFrac= JetFrac
+        self.SecJetFrac= SecondaryJetFrac
         
     
     def get_JetFrac(self):
         
         if self.MISSED:
             self.JetFrac = 0
+            self.SecJetFrac = 0
             
         else:
             
@@ -1028,7 +1044,7 @@ class Impact:
             
             
         
-        return(self.JetFrac)
+        return(self.JetFrac,self.SecJetFrac)
              
              
     
@@ -1180,7 +1196,7 @@ class Impact:
                 
                 # Weighted average of trajectories squared velocities by thickness
         
-                self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.get_JetFrac()/100
+                self.JetNRJ = 4/3*np.pi*self.Drop.Rdrop**3*rho/2*Veq2*self.VolFrac/100*self.get_JetFrac()[0]/100
                 self.JetNRJ_Bal = self.JetNRJ*np.sin(2*(np.pi/2-self.Cone.Alpha))
             
             else:
@@ -1910,6 +1926,8 @@ class Impact:
         
         self.compute_traj(Time)
         trajX,trajY,trajT = self.get_traj()
+        
+        self.compute_JetFrac()
             
         trajXco, trajYco = self.Cone.Circle2Cone(trajX, trajY)
         
@@ -1938,9 +1956,9 @@ class Impact:
             heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
             heightmask = self.meshH/2 > np.abs(H - contactDist)
             
-            ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
+            ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.fracmap[heightmask],cmap='rainbow',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
             
-            ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
+            ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.fracmap[heightmask],cmap='rainbow',s = 0.5,vmin=0,vmax=self.Drop.Rdrop)
             
                 
             for i in range(iT):
@@ -1965,8 +1983,8 @@ class Impact:
                     
                 
                 
-                ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
-                ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.meshH[heightmask]/2,cmap='Blues',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
+                ax[0].scatter(trajX[points_mask][heightmask],trajY[points_mask][heightmask],c=self.fracmap[heightmask],cmap='rainbow',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
+                ax[1].scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],c=self.fracmap[heightmask],cmap='rainbow',vmin=0,vmax=self.Drop.Rdrop,s = 1,zorder=10)
                 
             ax[1].set_xlim(xlims)
             ax[1].set_ylim(ylims)
