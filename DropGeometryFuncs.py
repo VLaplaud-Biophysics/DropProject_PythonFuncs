@@ -76,7 +76,7 @@ def Cone2CircleZ(X,Y,Z,Alpha):
     
     X1,Y1 = vf.ToCart(A, R1, angle = 'rad')
     
-    Xnew,Ynew = Cone2Circle(X1,Y1,Alpha,0)
+    Xnew,Ynew = Cone2Circle(X1,Y1,Alpha)
     
     Znew = (Z-R)*np.sin(Alpha)
 

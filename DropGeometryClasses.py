@@ -8,7 +8,7 @@ import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
 
-from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
+from scipy.interpolate import LinearNDInterpolator
 
 # import seaborn as sns
 
@@ -88,9 +88,9 @@ class Cone:
     
     ######  Impact with a drop
     
-    def impact(self,drop,oriType,velIni,meshType):
+    def impact(self,drop,oriType,velIni,velType,meshType):
         
-        I = Impact(drop,self,oriType,velIni,meshType)
+        I = Impact(drop,self,oriType,velIni,velType,meshType)
         
         return(I)
     
@@ -195,8 +195,8 @@ class Cone:
         fig,ax = plt.subplots(dpi = 250, ncols = 2, figsize = (9,5))
         
         fig.suptitle(Title)
-        ax[0].set_title('Circle config')
-        ax[1].set_title('Cone config')
+        ax[0].set_title('Circle (unfolded) config')
+        ax[1].set_title('Cone (original) config')
         
         ax[0].set_xlabel(Xlabel_Ci)
         ax[0].set_ylabel(Ylabel_Ci)
@@ -410,9 +410,9 @@ class Drop:
 
     ######  Impact with a cone
     
-    def impact(self,cone,oriType,velIni,meshType):
+    def impact(self,cone,oriType,velIni,velType,meshType):
         
-        I = Impact(self,cone,oriType,velIni,meshType)
+        I = Impact(self,cone,oriType,velIni,velType,meshType)
         
         return(I)
 
@@ -424,7 +424,7 @@ class Drop:
 class Impact:
     
     
-    def __init__(self,drop,cone,oriType,velIni,meshType):
+    def __init__(self,drop,cone,oriType,velIni,velType,meshType):
         
         self.MISSED = False
         
@@ -448,6 +448,7 @@ class Impact:
         
         self.oriType = oriType
         self.velIni = velIni
+        self.velType = velType
         
         
         self.ori = []
@@ -525,7 +526,7 @@ class Impact:
         ## simulate trajectories
         if not self.MISSED:
             self.compute_velocity_ini()
-            Time = 60
+            Time = 20 # ms
             self.compute_traj(np.linspace(0,Time,Time*50))
     
     ###############################################################################
@@ -568,11 +569,11 @@ class Impact:
     
                 
                 
-                self.oriX = np.average(meshXci,weights=self.meshH**5)
-                self.oriY = np.average(meshYci,weights=self.meshH**5)
+                self.oriX = meshXci[np.argmax(self.meshH)]
+                self.oriY = 0
                 
                 mesh1 = meshXci-meshXci[np.argmax(self.meshH)]
-                mesh2 = meshYci-meshYci[np.argmax(self.meshH)]
+                mesh2 = meshYci-0
                 self.meshDist = np.sqrt(np.square(mesh1)+np.square(mesh2))
                 
                 self.impactR = np.max(self.meshDist)
@@ -734,7 +735,7 @@ class Impact:
     
     def compute_traj(self,Time):
        
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini(self.velType)
         
                
         trajT = ml.repmat(Time,len(meshXci),1).T
@@ -752,6 +753,7 @@ class Impact:
             
             meshPts_Xci[it,:] = meshPts_Xci[it-1,:] + meshVel_Xci[it-1,:]*(Time[it]-Time[it-1])
             meshPts_Yci[it,:] = meshPts_Yci[it-1,:] + meshVel_Yci[it-1,:]*(Time[it]-Time[it-1])
+            
             
 
             #######################################################################
@@ -837,6 +839,9 @@ class Impact:
                     
                     
                     
+                    meshVel_Xci[it-1,:][badPts1] = velX_new1.copy()
+                    meshVel_Yci[it-1,:][badPts1] = velY_new1.copy()
+                    
                     meshVel_Xci[it,:][badPts1] = velX_new1.copy()
                     meshVel_Yci[it,:][badPts1] = velY_new1.copy()
                     
@@ -845,7 +850,7 @@ class Impact:
                     
                     
                     # position correction in circle config 
-                    meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2] = vf.ToCart(T2, r[badPts2], angle='rad') 
+                    meshPts_Xci[it,:][badPts2], meshPts_Yci[it,:][badPts2] = vf.ToCart(T1, r[badPts2], angle='rad') 
                 
                 
                     
@@ -872,38 +877,42 @@ class Impact:
                     
                     # plt.show()
                     
-                    meshVel_Xci[it,:][badPts2] = velX_new2
-                    meshVel_Yci[it,:][badPts2] = velY_new2
+                    meshVel_Xci[it-1,:][badPts2] = velX_new2.copy()
+                    meshVel_Yci[it-1,:][badPts2] = velY_new2.copy()
                     
+                    meshVel_Xci[it,:][badPts2] = velX_new2.copy()
+                    meshVel_Yci[it,:][badPts2] = velY_new2.copy()
+                    
+                ############################################################
+                ##### Correcting points trajectory outside of the cone
                 
+                # Point whose ith position is outside of the cone
+                
+                out_mask = np.sqrt(np.square(meshPts_Xci[it,:]) + np.square(meshPts_Yci[it,:]))>self.Cone.Rcircle
+                
+                           
+                # Point position in cone configuration for it-1 and it
+                
+                Xco,Yco = dgf.Circle2Cone(meshPts_Xci[it-1,:],meshPts_Yci[it-1,:], self.Cone.Alpha) 
+                Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha)
+                
+                # velocity of the points in the cone configuration
+             
+                tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_Xci[it-1,:],meshVel_Yci[it-1,:],Xco,Yco, self.Cone.Alpha)
+                
+                
+                # transfert in circle config
+                
+                velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
+                
+                
+                meshVel_Xci[it,:][out_mask] = velX_new[out_mask]
+                meshVel_Yci[it,:][out_mask] = velY_new[out_mask]
 
             
             
             
-            ############################################################
-            ##### Correcting points trajectory outside of the cone
             
-            # Point whose ith position is outside of the cone
-            
-            out_mask = np.sqrt(np.square(meshPts_Xci[it,:]) + np.square(meshPts_Yci[it,:]))>self.Cone.Rcircle
-                       
-            # Point position in cone configuration for it-1 and it
-            
-            Xco,Yco = dgf.Circle2Cone(meshPts_Xci[it-1,:],meshPts_Yci[it-1,:], self.Cone.Alpha) 
-            Xco1,Yco1 = dgf.Circle2Cone(meshPts_Xci[it,:],meshPts_Yci[it,:], self.Cone.Alpha)
-            
-            # velocity of the points in the cone configuration
-         
-            tmp_velX,tmp_velY = dgf.VelCircle2Cone(meshVel_Xci[it-1,:],meshVel_Yci[it-1,:],Xco,Yco, self.Cone.Alpha)
-            
-            
-            # transfert in circle config
-            
-            velX_new,velY_new = dgf.VelCone2Circle(tmp_velX,tmp_velY,Xco1,Yco1, self.Cone.Alpha)
-            
-            
-            meshVel_Xci[it,:][out_mask] = velX_new[out_mask]
-            meshVel_Yci[it,:][out_mask] = velY_new[out_mask]
             
             
 
@@ -977,9 +986,7 @@ class Impact:
         
         
         OutVelXco,OutVelYco = dgf.VelCircle2Cone(OutVelX, OutVelY, OutXco, OutYco, self.Cone.Alpha)
-        
-        OutVelXco[InSecondJetMask] = 0
-        OutVelYco[InSecondJetMask] = 0
+
         
         OutJetMask =( np.abs(OutYco)>=0.01) & (OutYco*OutVelYco<0) & (OutRco>self.Cone.Rcone)
         
@@ -989,72 +996,72 @@ class Impact:
         ########################### DISPLAY
                
         
-        tx = np.linspace(0,2*np.pi,100)
+        # tx = np.linspace(0,2*np.pi,100)
         
         
-        f = plt.figure(dpi=200)
+        # f = plt.figure(dpi=200)
         
-        plt.plot(self.Cone.Rcone*np.cos(tx),self.Cone.Rcone*np.sin(tx),'g')
+        # plt.plot(self.Cone.Rcone*np.cos(tx),self.Cone.Rcone*np.sin(tx),'g')
         
-        plt.quiver(OutXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutYco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelYco[~(InJetMask|OutJetMask|InSecondJetMask)],color='b')
+        # plt.quiver(OutXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutYco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelXco[~(InJetMask|OutJetMask|InSecondJetMask)],OutVelYco[~(InJetMask|OutJetMask|InSecondJetMask)],color='b')
         
-        plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='r')
+        # plt.quiver(OutXco[InJetMask|OutJetMask],OutYco[InJetMask|OutJetMask],OutVelXco[InJetMask|OutJetMask],OutVelYco[InJetMask|OutJetMask],color='r')
         
-        plt.scatter(OutXco,OutYco,color = 'c',s=4)
-        plt.scatter(self.meshX,self.meshY,color = 'c',label='Non jet trajectories',s=4)
+        # plt.scatter(OutXco,OutYco,color = 'c',s=4)
+        # plt.scatter(self.meshX,self.meshY,color = 'c',label='Non jet trajectories',s=4)
         
-        plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='crimson',s=4.1,zorder=10)
-        plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'crimson',label='Jet formed inside the cone',s=4.1,zorder=10)
-        
-        
-        plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='blueviolet',s=4.1,zorder=10)
-        plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'blueviolet',s=4.1,label='Jet formed outside the cone',zorder=10)
-        
-        plt.scatter(OutXco[InSecondJetMask],OutYco[InSecondJetMask],color='gold',s=4.1,zorder=10)
-        plt.scatter(self.meshX[InSecondJetMask],self.meshY[InSecondJetMask],color = 'yellow',label='Secondary jet',s=4.1)
+        # plt.scatter(OutXco[InJetMask],OutYco[InJetMask],color='crimson',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[InJetMask],self.meshY[InJetMask],color = 'crimson',label='Jet formed inside the cone',s=4.1,zorder=10)
         
         
+        # plt.scatter(OutXco[OutJetMask],OutYco[OutJetMask],color='blueviolet',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[OutJetMask],self.meshY[OutJetMask],color = 'blueviolet',s=4.1,label='Jet formed outside the cone',zorder=10)
         
-        ax = plt.gca()
-        ax.set_xlim([-1.5*self.Cone.Rcone,1.2*self.Cone.Rcone])
-        ax.set_ylim([-1.2*self.Cone.Rcone,1.2*self.Cone.Rcone])
-        ax.set_aspect('equal')
-        
-        plt.legend(fontsize='xx-small')
-        
-        f.tight_layout()
-        plt.show()
-        
-        
-        f = plt.figure(dpi=200)
-        
-        plt.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),'g')
-        
-        # plt.quiver(OutX[~(InJetMask|OutJetMask)],OutY[~(InJetMask|OutJetMask)],OutVelXnorm[~(InJetMask|OutJetMask)],OutVelYnorm[~(InJetMask|OutJetMask)],color='w')
-        
-        # plt.quiver(OutX[InJetMask|OutJetMask],OutY[InJetMask|OutJetMask],OutVelXnorm[InJetMask|OutJetMask],OutVelYnorm[InJetMask|OutJetMask],color='c',scale=50)
-        
-        plt.scatter(OutX,OutY,color = 'b',label='Non jet trajectories',s=4)
-        plt.scatter(self.meshXci,self.meshYci,color = 'b',s=4)
-        
-        plt.scatter(OutX[InJetMask],OutY[InJetMask],color='r',label='Jet formed inside the cone',s=4.1)
-        plt.scatter(self.meshXci[InJetMask],self.meshYci[InJetMask],color = 'r',s=4.1)
-        
-        
-        plt.scatter(OutX[OutJetMask],OutY[OutJetMask],color='m',label='Jet formed outside the cone',s=4.1)
-        plt.scatter(self.meshXci[OutJetMask],self.meshYci[OutJetMask],color = 'm',s=4.1)
-        # plt.scatter(trajX[:,inter],trajY[:,inter],color = 'w',s=1.1)
-        # plt.scatter(trajX[:,OutJetMask],trajY[:,OutJetMask],color = 'c',s=1.1)
+        # plt.scatter(OutXco[InSecondJetMask],OutYco[InSecondJetMask],color='gold',s=4.1,zorder=10)
+        # plt.scatter(self.meshX[InSecondJetMask],self.meshY[InSecondJetMask],color = 'yellow',label='Secondary jet',s=4.1)
         
         
         
-        ax = plt.gca()
-        ax.set_xlim([-1.5*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
-        ax.set_ylim([-1.2*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
-        ax.set_aspect('equal')
+        # ax = plt.gca()
+        # ax.set_xlim([-1.5*self.Cone.Rcone,1.2*self.Cone.Rcone])
+        # ax.set_ylim([-1.2*self.Cone.Rcone,1.2*self.Cone.Rcone])
+        # ax.set_aspect('equal')
         
-        f.tight_layout()
-        plt.show()
+        # plt.legend(fontsize='xx-small')
+        
+        # f.tight_layout()
+        # plt.show()
+        
+        
+        # f = plt.figure(dpi=200)
+        
+        # plt.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),'g')
+        
+        # # plt.quiver(OutX[~(InJetMask|OutJetMask)],OutY[~(InJetMask|OutJetMask)],OutVelXnorm[~(InJetMask|OutJetMask)],OutVelYnorm[~(InJetMask|OutJetMask)],color='w')
+        
+        # # plt.quiver(OutX[InJetMask|OutJetMask],OutY[InJetMask|OutJetMask],OutVelXnorm[InJetMask|OutJetMask],OutVelYnorm[InJetMask|OutJetMask],color='c',scale=50)
+        
+        # plt.scatter(OutX,OutY,color = 'b',label='Non jet trajectories',s=4)
+        # plt.scatter(self.meshXci,self.meshYci,color = 'b',s=4)
+        
+        # plt.scatter(OutX[InJetMask],OutY[InJetMask],color='r',label='Jet formed inside the cone',s=4.1)
+        # plt.scatter(self.meshXci[InJetMask],self.meshYci[InJetMask],color = 'r',s=4.1)
+        
+        
+        # plt.scatter(OutX[OutJetMask],OutY[OutJetMask],color='m',label='Jet formed outside the cone',s=4.1)
+        # plt.scatter(self.meshXci[OutJetMask],self.meshYci[OutJetMask],color = 'm',s=4.1)
+        # # plt.scatter(trajX[:,inter],trajY[:,inter],color = 'w',s=1.1)
+        # # plt.scatter(trajX[:,OutJetMask],trajY[:,OutJetMask],color = 'c',s=1.1)
+        
+        
+        
+        # ax = plt.gca()
+        # ax.set_xlim([-1.5*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
+        # ax.set_ylim([-1.2*self.Cone.Rcircle,1.2*self.Cone.Rcircle])
+        # ax.set_aspect('equal')
+        
+        # f.tight_layout()
+        # plt.show()
         
     
         ########################### DISPLAY END
@@ -1077,7 +1084,10 @@ class Impact:
         
         self.meshJFVx = OutVelXco[inter]
         self.meshJFVy = OutVelYco[inter]
+        self.meshJ2FVx = OutVelXco[InSecondJetMask]
+        self.meshJ2FVy = OutVelYco[InSecondJetMask]
         self.meshJH = self.meshH[inter] 
+        self.meshJ2H = self.meshH[InSecondJetMask] 
         
         
         JetFrac  = np.round(np.sum(inter)/np.size(inter)*1000)/10
@@ -1473,140 +1483,140 @@ class Impact:
         return    
     
     
-    def plot_3Dproj(self,title,resolution):
+    # def plot_3Dproj(self,title,resolution):
         
-        R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
-        inCone3D = R3D<self.Cone.Rcone
+    #     R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
+    #     inCone3D = R3D<self.Cone.Rcone
         
-        MeshY3DinCone = self.Drop.meshY3D[inCone3D]
-        MeshX3DinCone = self.Drop.meshX3D[inCone3D]
-        MeshZ3DinCone = self.Drop.meshZ3D[inCone3D]+self.Zdrop
+    #     MeshY3DinCone = self.Drop.meshY3D[inCone3D]
+    #     MeshX3DinCone = self.Drop.meshX3D[inCone3D]
+    #     MeshZ3DinCone = self.Drop.meshZ3D[inCone3D]+self.Zdrop
         
-        MeshX2Dcircle,MeshY2Dcircle = self.Cone.Cone2Circle(MeshX3DinCone,MeshY3DinCone)
+    #     MeshX2Dcircle,MeshY2Dcircle = self.Cone.Cone2Circle(MeshX3DinCone,MeshY3DinCone)
         
-        MeshX3Dcircle,MeshY3Dcircle,MeshZ3Dcircle = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,MeshZ3DinCone,self.Cone.Alpha)
+    #     MeshX3Dcircle,MeshY3Dcircle,MeshZ3Dcircle = dgf.Cone2CircleZ(MeshX3DinCone,MeshY3DinCone,MeshZ3DinCone,self.Cone.Alpha)
         
         
-        ### Circle config : removed sector to form a cone 
+    #     ### Circle config : removed sector to form a cone 
                 
-        tx = np.linspace(0,2*np.pi,300)
+    #     tx = np.linspace(0,2*np.pi,300)
         
-        T1 = np.pi-self.Cone.Beta/2
-        T2 = np.pi+self.Cone.Beta/2
+    #     T1 = np.pi-self.Cone.Beta/2
+    #     T2 = np.pi+self.Cone.Beta/2
         
-        if T1>T2:
-            Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
-        else:                
-            Ts = np.linspace(T1,T2,20)
+    #     if T1>T2:
+    #         Ts = np.linspace(np.mod(T1+np.pi,2*np.pi),np.mod(T2+np.pi,2*np.pi),20) - np.pi        
+    #     else:                
+    #         Ts = np.linspace(T1,T2,20)
         
-        sectorT = np.append(np.append([T1],Ts),[T2])
-        sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
+    #     sectorT = np.append(np.append([T1],Ts),[T2])
+    #     sectorR = np.append(np.append([0],self.Cone.Rcircle*np.ones(20)),[0])
         
-        sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
+    #     sectorX,sectorY = vf.ToCart(sectorT,sectorR,angle = 'rad')
         
-        fig1,[[ax0,ax1],[ax2,ax3]] = plt.subplots(dpi=200,ncols=2,nrows=2)
-        fig1.suptitle(title)
-        ax0.set_title('Points')
-        ax1.set_title('Hist')
-        ax2.set_title('Interp')
+    #     fig1,[[ax0,ax1],[ax2,ax3]] = plt.subplots(dpi=200,ncols=2,nrows=2)
+    #     fig1.suptitle(title)
+    #     ax0.set_title('Points')
+    #     ax1.set_title('Hist')
+    #     ax2.set_title('Interp')
         
-        ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
-        ax0.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+    #     ax0.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+    #     ax0.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
         
-        ax0.scatter(MeshX3Dcircle,MeshY3Dcircle,c='b',s=0.5,label='3Dproj',zorder=0)
-        ax0.scatter(MeshX2Dcircle,MeshY2Dcircle,c='c',s=0.5,label='2Dproj',zorder=1)
+    #     ax0.scatter(MeshX3Dcircle,MeshY3Dcircle,c='b',s=0.5,label='3Dproj',zorder=0)
+    #     ax0.scatter(MeshX2Dcircle,MeshY2Dcircle,c='c',s=0.5,label='2Dproj',zorder=1)
         
-        ax0.set_aspect('equal')
-        xlim = ax0.get_xlim()
-        ylim = ax0.get_ylim()
+    #     ax0.set_aspect('equal')
+    #     xlim = ax0.get_xlim()
+    #     ylim = ax0.get_ylim()
         
         
         
-        ax1.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
-        ax1.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+    #     ax1.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+    #     ax1.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
 
-        ax2.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
-        ax2.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+    #     ax2.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+    #     ax2.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
         
-        ax3.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
-        ax3.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
+    #     ax3.plot(self.Cone.Rcircle*np.cos(tx),self.Cone.Rcircle*np.sin(tx),color = 'g', lw=1,label = 'Circle')
+    #     ax3.plot(sectorX,sectorY,'--m',lw=1, label = 'Removed sector')
         
         
         
-        I = ax1.hist2d(MeshX3Dcircle,MeshY3Dcircle,zorder=0,label='Drop height (density)',bins=resolution,cmap='plasma')
+    #     I = ax1.hist2d(MeshX3Dcircle,MeshY3Dcircle,zorder=0,label='Drop height (density)',bins=resolution,cmap='plasma')
 
-        ax1.set_xlim(xlim)
-        ax1.set_ylim(ylim)
+    #     ax1.set_xlim(xlim)
+    #     ax1.set_ylim(ylim)
         
-        ax1.set_aspect('equal')
+    #     ax1.set_aspect('equal')
         
-        h,xedges,yedges = I[0],I[1],I[2]
-        xvalues = (xedges[0:-1] + xedges[1:])/2
-        yvalues = (yedges[0:-1] + yedges[1:])/2
+    #     h,xedges,yedges = I[0],I[1],I[2]
+    #     xvalues = (xedges[0:-1] + xedges[1:])/2
+    #     yvalues = (yedges[0:-1] + yedges[1:])/2
         
-        HeightInterp = RegularGridInterpolator((xvalues,yvalues),h,method='cubic')
+    #     HeightInterp = RegularGridInterpolator((xvalues,yvalues),h,method='cubic')
         
         
-        xx = np.linspace(np.min(xvalues),np.max(xvalues),50)
-        yy = np.linspace(np.min(yvalues),np.max(yvalues),50)
+    #     xx = np.linspace(np.min(xvalues),np.max(xvalues),50)
+    #     yy = np.linspace(np.min(yvalues),np.max(yvalues),50)
         
 
-        Xs, Ys = np.meshgrid(xx, yy, indexing='ij')
+    #     Xs, Ys = np.meshgrid(xx, yy, indexing='ij')
 
-        # interpolator
+    #     # interpolator
         
-        HeightGrid = HeightInterp((Xs, Ys))
+    #     HeightGrid = HeightInterp((Xs, Ys))
         
-        ax2.scatter(Xs, Ys,c= HeightGrid,cmap='plasma',marker='s')
+    #     ax2.scatter(Xs, Ys,c= HeightGrid,cmap='plasma',marker='s')
         
-        # sns.heatmap(HeightGrid,cmap = 'plasma',ax=ax2)
+    #     # sns.heatmap(HeightGrid,cmap = 'plasma',ax=ax2)
 
 
        
-        ax2.set_xlim(xlim)
-        ax2.set_ylim(ylim)
+    #     ax2.set_xlim(xlim)
+    #     ax2.set_ylim(ylim)
         
-        ax2.set_aspect('equal')
-        
-        
-        Hgrad_x, Hgrad_y = np.gradient(HeightGrid)
+    #     ax2.set_aspect('equal')
         
         
-
-        
-        xxx = np.linspace(np.min(xvalues),np.max(xvalues),15)
-        yyy = np.linspace(np.min(yvalues),np.max(yvalues),15)
-        
-        GradXInterp = RegularGridInterpolator((xx,yy), Hgrad_x, method='cubic')
-        GradYInterp = RegularGridInterpolator((xx,yy), Hgrad_y, method='cubic')
+    #     Hgrad_x, Hgrad_y = np.gradient(HeightGrid)
         
         
 
-        XXs, YYs = np.meshgrid(xxx, yyy, indexing='ij')
+        
+    #     xxx = np.linspace(np.min(xvalues),np.max(xvalues),15)
+    #     yyy = np.linspace(np.min(yvalues),np.max(yvalues),15)
+        
+    #     GradXInterp = RegularGridInterpolator((xx,yy), Hgrad_x, method='cubic')
+    #     GradYInterp = RegularGridInterpolator((xx,yy), Hgrad_y, method='cubic')
+        
+        
 
-        fieldnorm = np.sqrt(GradXInterp((XXs, YYs))**2+ GradYInterp((XXs, YYs))**2)
+    #     XXs, YYs = np.meshgrid(xxx, yyy, indexing='ij')
+
+    #     fieldnorm = np.sqrt(GradXInterp((XXs, YYs))**2+ GradYInterp((XXs, YYs))**2)
         
-        ax3.quiver(XXs, YYs, np.divide(-GradXInterp((XXs, YYs)),fieldnorm), np.divide(-GradYInterp((XXs, YYs)),fieldnorm),fieldnorm,
-                   scale=20,headlength=18,headaxislength=16,headwidth=8,cmap='plasma')
+    #     ax3.quiver(XXs, YYs, np.divide(-GradXInterp((XXs, YYs)),fieldnorm), np.divide(-GradYInterp((XXs, YYs)),fieldnorm),fieldnorm,
+    #                scale=20,headlength=18,headaxislength=16,headwidth=8,cmap='plasma')
 
         
-        ax3.set_xlim(xlim)
-        ax3.set_ylim(ylim)
+    #     ax3.set_xlim(xlim)
+    #     ax3.set_ylim(ylim)
         
-        ax3.set_aspect('equal')
+    #     ax3.set_aspect('equal')
         
-        fig1.tight_layout()
+    #     fig1.tight_layout()
         
-        plt.show()
+    #     plt.show()
     
      
-    def plot_3Dview(self,title):
+    def plot_3Dview(self,path,label):
         
         Hmax = 2*self.Drop.Rdrop + self.Cone.Rcone/np.tan(self.Cone.Alpha)
         
         Tmax = Hmax/self.Drop.Vel
         
-        Times = np.linspace(0,4*Tmax,180)
+        Times = np.linspace(0,4*Tmax,np.round(4*Tmax*50).astype(int))
         
         
         R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
@@ -1662,17 +1672,17 @@ class Impact:
             
             # get_ipython().run_line_magic('matplotlib', 'qt')
             fig = plt.figure(dpi=200)
-            fig.suptitle(title)
+            fig.suptitle(label)
             ax0 = fig.add_subplot(121, projection='3d')
             ax0.view_init(elev=25, azim=-100)
             ax0.set_title('Circle config')
-            ax0.set_xlim(-4,4)
-            ax0.set_ylim(-4,4)
-            ax0.set_zlim(0,3)
+            # ax0.set_xlim(-4,4)
+            # ax0.set_ylim(-4,4)
+            # ax0.set_zlim(0,3)
             ax1 = fig.add_subplot(122, projection='3d')
-            ax1.set_xlim(-2.5,2.5)
-            ax1.set_ylim(-2.5,2.5)
-            ax1.set_zlim(0,5)
+            # ax1.set_xlim(-2.5,2.5)
+            # ax1.set_ylim(-2.5,2.5)
+            # ax1.set_zlim(0,5)
             ax1.view_init(elev=30, azim=-100)
             ax1.set_title('Cone config')
             
@@ -1752,7 +1762,7 @@ class Impact:
     
             
             
-            savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\3D\Movies\\' + title
+            savepath = path + label
             
             os.makedirs(savepath,exist_ok = True)
             
@@ -1765,13 +1775,13 @@ class Impact:
             
             
             
-    def rotating_3D(self,title):
+    def rotating_3D(self,path,label):
         
         Hmax = 2*self.Drop.Rdrop + self.Cone.Rcone/np.tan(self.Cone.Alpha)
         
         Tmax = Hmax/self.Drop.Vel
         
-        Times = np.linspace(0,4*Tmax,180)
+        Times = np.linspace(0,4*Tmax,np.round(4*Tmax*50).astype(int))
         
         
         R3D = np.sqrt(self.Drop.meshX3D**2 + self.Drop.meshY3D**2)
@@ -1826,125 +1836,125 @@ class Impact:
             
             ZtotUpOutCone[CrossedUpOut] = 0
         
-        ##### Rotating impact
-        Az = 290-it*360/len(Times)
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.view_init(elev=18, azim=Az)
-        
-        # Make panes transparent
-        ax.xaxis.pane.fill = False # Left pane
-        ax.yaxis.pane.fill = False # Right pane
-        
-        # Remove grid lines
-        ax.grid(False)
-        
-        # Remove tick labels
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.set_zticklabels([])
-        
-        # Transparent spines
-        ax.w_xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
-        ax.w_yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
-        ax.w_zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
-        
-        # Transparent panes
-        ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        ax.w_zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-        
-        # No ticks
-        ax.set_xticks([]) 
-        ax.set_yticks([]) 
-        ax.set_zticks([])
-        
-        ax.set_xlim(-5,5)
-        ax.set_ylim(-5,5)
-        ax.set_zlim(0,5)
-        
-        
-        tx1 = np.linspace(-1*np.pi/6,7*np.pi/6,1000)+np.pi/2+Az/180*np.pi
-        tx2 = np.linspace(7*np.pi/6,11*np.pi/6,1000)+np.pi/2+Az/180*np.pi
-        
-        ax.plot(self.Cone.Rcone*np.cos(tx1), self.Cone.Rcone*np.sin(tx1),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=-2)
-        
-        ax.plot(self.Cone.Rcone*np.cos(tx2), self.Cone.Rcone*np.sin(tx2),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=201)
-        
-        ax.plot(self.Cone.Rcone*np.cos(0), self.Cone.Rcone*np.sin(0),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'r.', ms = 3, label='Cone',zorder=202)
-        
-        ax.plot([0, self.Cone.Rcone*np.cos(0)],[0, self.Cone.Rcone*np.sin(0)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
-                '-r',zorder=199)
-        
-        for t in tx1[0:-1:2]:
-            ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
-                    '-',color = [0,0.7,0],zorder=-3)
-        
-        for t in tx2:
-            ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
-                    '-',color = [0,0.7,0],zorder=200)
-          
-        
-        ax.plot([-3.5,3.5,3.5,-3.5],[3.5,3.5,-3.5,-3.5],[0,0,0,0],'.r',ms=5,zorder=-5)
-        
-        ax.scatter(MeshX3DinCone,MeshY3DinCone,ZtotUpinCone,color='b',s=1,zorder=0)
-        
-        ax.scatter(MeshX3DOutCone,MeshY3DOutCone,ZtotUpOutCone,color='b',s=1,zorder=0)
-        
-        
-        H = tt*self.Drop.Vel
-        
-        points_mask = (trajT == 0)
-        
-        heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
-        heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - H) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
-        
-        ax.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],
-                   trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=1)
-        
+            ##### Rotating impact
+            Az = 290-it*360/len(Times)
             
-        for i in range(it):
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.view_init(elev=18, azim=Az)
             
-            i= i+1
+            # Make panes transparent
+            ax.xaxis.pane.fill = False # Left pane
+            ax.yaxis.pane.fill = False # Right pane
             
-            Ti = timevect[i]
+            # Remove grid lines
+            ax.grid(False)
             
-
-            points_mask = (trajT == timevect[it-i])
+            # Remove tick labels
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.set_zticklabels([])
+            
+            # Transparent spines
+            ax.w_xaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+            ax.w_yaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+            ax.w_zaxis.line.set_color((1.0, 1.0, 1.0, 0.0))
+            
+            # Transparent panes
+            ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.w_yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            ax.w_zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            
+            # No ticks
+            ax.set_xticks([]) 
+            ax.set_yticks([]) 
+            ax.set_zticks([])
+            
+            ax.set_xlim(-5,5)
+            ax.set_ylim(-5,5)
+            ax.set_zlim(0,5)
             
             
+            tx1 = np.linspace(-1*np.pi/6,7*np.pi/6,1000)+np.pi/2+Az/180*np.pi
+            tx2 = np.linspace(7*np.pi/6,11*np.pi/6,1000)+np.pi/2+Az/180*np.pi
             
-            Hi = Ti*self.Drop.Vel 
+            ax.plot(self.Cone.Rcone*np.cos(tx1), self.Cone.Rcone*np.sin(tx1),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=-2)
+            
+            ax.plot(self.Cone.Rcone*np.cos(tx2), self.Cone.Rcone*np.sin(tx2),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'g-', lw = 3, label='Cone',zorder=201)
+            
+            ax.plot(self.Cone.Rcone*np.cos(0), self.Cone.Rcone*np.sin(0),self.Cone.Rcone/np.tan(self.Cone.Alpha), 'r.', ms = 3, label='Cone',zorder=202)
+            
+            ax.plot([0, self.Cone.Rcone*np.cos(0)],[0, self.Cone.Rcone*np.sin(0)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                    '-r',zorder=199)
+            
+            for t in tx1[0:-1:2]:
+                ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                        '-',color = [0,0.7,0],zorder=-3)
+            
+            for t in tx2:
+                ax.plot([0, self.Cone.Rcone*np.cos(t)],[0, self.Cone.Rcone*np.sin(t)],[0, self.Cone.Rcone/np.tan(self.Cone.Alpha)],
+                        '-',color = [0,0.7,0],zorder=200)
+              
+            
+            ax.plot([-3.5,3.5,3.5,-3.5],[3.5,3.5,-3.5,-3.5],[0,0,0,0],'.r',ms=5,zorder=-5)
+            
+            ax.scatter(MeshX3DinCone,MeshY3DinCone,ZtotUpinCone,color='b',s=1,zorder=0)
+            
+            ax.scatter(MeshX3DOutCone,MeshY3DOutCone,ZtotUpOutCone,color='b',s=1,zorder=0)
             
             
+            H = tt*self.Drop.Vel
+            
+            points_mask = (trajT == 0)
             
             heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
-            heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - Hi) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+            heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - H) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
             
-
             ax.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],
-                       trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=i)
+                       trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=1)
             
-        
-        
-        
-        ax.set_aspect('equal')
-        
-        savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\3D\Movies\\RotatingView_' + title
-        
-        os.makedirs(savepath,exist_ok = True)
-        
-        figname = savepath + '\Right_Time_{:.2f}.png'
-        
-        
-        fig.savefig(figname.format(tt))
-        
-        plt.close(fig)
+                
+            for i in range(it):
+                
+                i= i+1
+                
+                Ti = timevect[i]
+                
+    
+                points_mask = (trajT == timevect[it-i])
+                
+                
+                
+                Hi = Ti*self.Drop.Vel 
+                
+                
+                
+                heightmask = np.zeros(np.shape(self.meshH), dtype=bool)
+                heightmask = np.abs(self.Zdrop+2*self.Drop.Rdrop - self.meshH/2 - Hi) < np.sqrt(self.meshX**2+self.meshY**2)/np.tan(self.Cone.Alpha)
+                
+    
+                ax.scatter(trajXco[points_mask][heightmask],trajYco[points_mask][heightmask],
+                           trajZco[points_mask][heightmask],c=[0,0,0.9],s = 1,zorder=i)
+                
+            
+            
+            
+            ax.set_aspect('equal')
+            
+            savepath = path + label
+            
+            os.makedirs(savepath,exist_ok = True)
+            
+            figname = savepath + '\Right_Time_{:.2f}.png'
+            
+            
+            fig.savefig(figname.format(tt))
+            
+            plt.close(fig)
         
         
     
-    def plot_splash_movie(self,Time,label,xlims,ylims,**kwargs):
+    def plot_splash_movie(self,Time,path,label,xlims,ylims,**kwargs):
         
         Title     = 'kw: title= ''My title for the figure'''
         Xlabel_Ci = 'kw: xlabelCi= ''My xlabel for the circle config'''
@@ -1983,7 +1993,7 @@ class Impact:
             else:
                 print('Unknown key : ' + key + '. Kwarg ignored.')
                 
-        savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\Movies\\' + label 
+        savepath = path + label 
          
         os.makedirs(savepath,exist_ok=True)
         

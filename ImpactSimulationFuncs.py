@@ -76,7 +76,7 @@ def plotFracs(Angle,npts,DropDiam,ConeDiams,oriType,velIni,meshType):
 ###
 # 2. Parameter space diagrams
 
-def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,velIni,meshType,path,label):
+def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,velIni,velType,meshType,path,label):
     
     npts = len(Angles)
     
@@ -143,6 +143,10 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
     os.makedirs(savepath + '\SecJetFrac\FixedAngle',exist_ok=True) # create folder
     os.makedirs(savepath + '\SecJetFrac\FixedDrop',exist_ok=True) # create folder
     os.makedirs(savepath + '\SecJetFrac\FixedDist',exist_ok=True) # create folder
+    
+    os.makedirs(savepath + '\BothJetFrac\FixedAngle',exist_ok=True) # create folder
+    os.makedirs(savepath + '\BothJetFrac\FixedDrop',exist_ok=True) # create folder
+    os.makedirs(savepath + '\BothJetFrac\FixedDist',exist_ok=True) # create folder
 
     os.makedirs(savepath + '\VolRatio\FixedAngle',exist_ok=True) # create folder
     os.makedirs(savepath + '\VolRatio\FixedDrop',exist_ok=True) # create folder
@@ -220,8 +224,8 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
                 
                 Cone = dgc.Cone(ConeDiam/2,a)    
                 
-                Drop = dgc.Drop(dd/2,oc,71,DropSpeed) # ~5000 points in the drop
-                Impact = Cone.impact(Drop,oriType,velIni,meshType)
+                Drop = dgc.Drop(dd/2,oc,72,DropSpeed) # ~5000 points in the drop
+                Impact = Cone.impact(Drop,oriType,velIni,velType,meshType)
                 
                 
                 JetFracs[idx[0][0],idx[0][1],idx[0][2]] = Impact.get_JetFrac()[0]
@@ -415,6 +419,33 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
         f0.savefig(savepath + '\SecJetFrac\FixedAngle\FxdADgm_'
                     + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_SecJetFrac.png')
 
+        plt.close(f0)
+        
+        
+        # Impact fraction in jet
+        f0,ax0 = plt.subplots(dpi=150,figsize = (7,6)) 
+        ax0.set_title('Cone angle = ' + str(round(a/(2*np.pi)*3600)/10))
+        ax0.set_xlabel('Offcent' + NormStr)
+        ax0.set_ylabel('DropDiam' + NormStr)
+        
+        ax0.set_xlim([0,np.max(RelOffCents)])
+        ax0.set_ylim([0,np.max(RelDropDiams)])
+    
+    
+        sc0 = ax0.scatter(2*meshOC[:,ia,:]/Normalisation,meshDD[:,ia,:]/Normalisation,c=SecJetFracs[:,ia,:]+JetFracs[:,ia,:],vmin=0, vmax = 100,
+                          cmap='PuOr',marker='s',s=pointSize,zorder=2)
+    
+        cbar0 = plt.colorbar(sc0)
+        cbar0.set_label('Impact fraction in both jets (%)')
+        
+        # ax0.set_aspect('equal')
+        
+    
+        f0.tight_layout()
+        
+        f0.savefig(savepath + '\BothJetFrac\FixedAngle\FxdADgm_'
+                    + label + '_'+str(int(npts))+'npts_' + str(round(a/(2*np.pi)*3600)/10) + 'deg_BothJetFrac.png')
+    
         plt.close(f0)
         
 
@@ -986,15 +1017,19 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
 ###
 # 3. Cone optimization diagrams
 
-def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
+def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,path,label):
     
     # ConeSurface = float, ConeAngles = np.linespace(x,y,z), dropScaling = np.linespace(a,b,c)
+    
+    if not len(coneAngles) == int(npts):
+        raise ValueError('Invalid case ! npts should match the length of ''coneAngles'' and ''dropScaling'' ')
     
     oriType = 'Hgrad'
     velIni = 'Radial'
     meshType = 'zone'
+    velType = 'full_div0'
     
-    savepath = r'd:\Users\laplaud\Desktop\PostDoc\Code\DropProject_WithAna\Figures\Optimization/' + label + '_Res' + str(npts) + '_Drop' + str(ndrops)
+    savepath = path + label + '_Res' + str(npts) + '_Drop' + str(ndrops)
     
     # Drop distribution
 
@@ -1087,7 +1122,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,label):
                     if (dr<(cr+ds*dsc)*0.95) & (ds*dsc<(cr+dr)):
     
                         
-                        I = dgc.Cone(cr,a).impact(dgc.Drop(ds*dsc,dr,71,dv),oriType,velIni,meshType)
+                        I = dgc.Cone(cr,a).impact(dgc.Drop(ds*dsc,dr,72,dv),oriType,velIni,velType,meshType)
     
                         impactVolume[di] = I.VolFrac/100*4/3*np.pi*(ds/1000)**3
     
