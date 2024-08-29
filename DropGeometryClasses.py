@@ -459,17 +459,12 @@ class Impact:
         self.meshVXci_norm = []
         self.meshVYci_norm = []
         
+        
         self.meshVXci_tan = []
         self.meshVYci_tan = []
         
-        self.meshVXci_tan_div0 = []
-        self.meshVYci_tan_div0 = []
-        
         self.meshVXci = []
         self.meshVYci = []
-        
-        self.meshVXci_div0= []
-        self.meshVYci_div0 = []
 
         self.SheetOpen = []
         self.wiXs = []
@@ -663,7 +658,7 @@ class Impact:
     
     def compute_velocity_ini(self):
         
-        if self.meshVXci_div0 == []:
+        if self.meshVXci == []:
     
             meshXci,meshYci,meshOXci,meshOYci = self.orientation() # Cone config, full drop       
 
@@ -689,20 +684,15 @@ class Impact:
             
             meshVX_tan,meshVY_tan = dgf.VelCircle2Cone(self.meshVXci_tan, self.meshVYci_tan, meshXci, meshYci, self.Cone.Alpha)
             
-            meshVX_tan_div0 = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
-            meshVY_tan_div0 = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
+            meshVX_tan = np.ones(np.shape(meshVX_tan))*np.mean(meshVX_tan)
+            meshVY_tan = np.ones(np.shape(meshVY_tan))*np.mean(meshVY_tan)
             
             
-            self.meshVXci_tan_div0,self.meshVYci_tan_div0 = dgf.VelCone2Circle(meshVX_tan_div0,meshVY_tan_div0, meshX, meshY, self.Cone.Alpha)
+            self.meshVXci_tan,self.meshVYci_tan = dgf.VelCone2Circle(meshVX_tan,meshVY_tan, meshX, meshY, self.Cone.Alpha)
 
             
-
             self.meshVXci = self.meshVXci_norm + self.meshVXci_tan
             self.meshVYci = self.meshVYci_norm + self.meshVYci_tan
-            
-            
-            self.meshVXci_div0 = self.meshVXci_norm + self.meshVXci_tan_div0
-            self.meshVYci_div0 = self.meshVYci_norm + self.meshVYci_tan_div0
             
 
     
@@ -717,17 +707,9 @@ class Impact:
 
             return(self.meshXci,self.meshYci,self.meshVXci_tan,self.meshVYci_tan)
         
-        elif velType == 'tan_div0':
-
-            return(self.meshXci,self.meshYci,self.meshVXci_tan_div0,self.meshVYci_tan_div0)
-        
-        elif velType == 'full':   
+        elif velType == 'full': 
 
             return(self.meshXci,self.meshYci,self.meshVXci,self.meshVYci)
-        
-        elif velType == 'full_div0': 
-
-            return(self.meshXci,self.meshYci,self.meshVXci_div0,self.meshVYci_div0)
         
         
 
@@ -944,7 +926,7 @@ class Impact:
     
     def compute_JetFrac(self):
         
-        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full_div0')
+        meshXci,meshYci,meshVXci,meshVYci = self.velocity_ini('full')
 
         
         ############### Intersection from trajectories (inside and outside)

@@ -1017,7 +1017,7 @@ def PhaseDiagrams(RelOffCents,ConeSize,ConeSizeType,Angles,RelDropDiams,oriType,
 ###
 # 3. Cone optimization diagrams
 
-def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,path,label):
+def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropRadii,dropScaling,path,label):
     
     # ConeSurface = float, ConeAngles = np.linespace(x,y,z), dropScaling = np.linespace(a,b,c)
     
@@ -1029,21 +1029,15 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,path,label):
     meshType = 'zone'
     velType = 'full_div0'
     
-    savepath = path + label + '_Res' + str(npts) + '_Drop' + str(ndrops)
-    
-    # Drop distribution
-
-    dropRadii = np.random.gamma(3,0.5, ndrops) # Gamma distrib
-
-    dropRadii[dropRadii>5] = dropRadii[dropRadii>5]-5 # Max radius [mm]
+    savepath = path + label + '_Res' + str(npts) + '_Drop' + str(ndrops)  
     
     MedianDropR = np.median(dropRadii)
-    
+
     MedianDropS = 4*np.pi*MedianDropR**2
     
     DropNorm = ConeSurface/MedianDropS
     
-    dropRadii = np.multiply(dropRadii,np.sqrt(DropNorm))    
+    dropRadii = np.multiply(dropRadii,np.sqrt(DropNorm)) 
     
     MedianDropR = np.median(dropRadii)
 
@@ -1084,7 +1078,7 @@ def OptiDiagrams(ConeSurface,coneAngles,npts,ndrops,dropScaling,path,label):
 
         
 
-
+        # drop positions
         dropRs = np.sqrt(np.random.rand(ndrops)*(np.sqrt(ConeSurface*np.sin(np.max(coneAngles))/np.pi)+np.max(dropRadii)/2)**2)
         
     
